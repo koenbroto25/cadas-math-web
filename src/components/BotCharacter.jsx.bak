@@ -1,0 +1,191 @@
+// src/components/BotCharacter.jsx
+// Kak Cadas — avatar multi-ekspresi + viseme lip-sync
+// Requires: file SVG ekspresi & viseme di backend /assets/bot/
+//
+// Struktur folder backend yang diharapkan:
+//   /assets/bot/expr/08_expr_idle.svg
+//   /assets/bot/expr/09_expr_listening.svg
+//   /assets/bot/expr/10_expr_thinking.svg
+//   /assets/bot/expr/11_expr_hype.svg
+//   /assets/bot/expr/12_expr_celebrating.svg
+//   /assets/bot/expr/13_expr_disappointed.svg
+//   /assets/bot/viseme/A.svg   (M, B, P, jeda)
+//   /assets/bot/viseme/B.svg   (konsonan ringan)
+//   /assets/bot/viseme/C.svg   (vokal A/E pendek)
+//   /assets/bot/viseme/D.svg   (vokal A lebar)
+//   /assets/bot/viseme/E.svg   (vokal O/U bulat)
+//   /assets/bot/viseme/X.svg   (netral/silent = copy idle)
+
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, StyleSheet, View, Image } from 'react-native';
+import { useStore } from '../store/useStore';
+
+const BASE_URL = __DEV__
+  ? 'http://10.162.39.240:3000'
+  : 'https://api.cadasmatematika.id';
+
+// Map botState -> file ekspresi
+const EXPR_MAP = {
+  idle:              '08_expr_idle.svg',
+  listening:         '09_expr_listening.svg',
+  thinking:          '10_expr_thinking.svg',
+  speaking_calm:     '08_expr_idle.svg',      // pakai idle sebagai base speaking calm
+  speaking_hype:     '11_expr_hype.svg',
+  celebrating:       '12_expr_celebrating.svg',
+  disappointed_mild: '13_expr_disappointed.svg',
+  sleeping:          '08_expr_idle.svg',      // sleeping = idle + animasi CSS saja
+};
+
+// Urutan viseme loop saat speaking (fallback kalau tidak ada data Rhubarb)
+// Rhubarb akan override ini dengan data real per-audio
+const SPEAKING_LOOP = ['X', 'B', 'C', 'D', 'C', 'B', 'X', 'A'];
+
+export default function BotCharacter({ size = 120, style, visemeData = null }) {
+  const botState = useStore((s) => s.botState);
+
+  const floatAnim  = useRef(new Animated.Value(0)).current;
+  const shakeAnim  = useRef(new Animated.Value(0)).current;
+  const bounceAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
+
+  const [currentViseme, setCurrentViseme] = useState('X');
+  const visemeTimerRef = useRef(null);
+  const isSpeaking = botState === 'speaking_calm' || botState === 'speaking_hype';
+
+  // Ekspresi dasar berdasarkan botState
+  const exprFile = EXPR_MAP[botState] || EXPR_MAP.idle;
+  const exprUrl  = `${BASE_URL}/assets/bot/expr/${exprFile}`;
+  const visemeUrl = `${BASE_URL}/assets/bot/viseme/${currentViseme}.svg`;
+
+  // ── Animasi float idle (semua state) ─────────────────────────────────
+  useEffect(() => {
+    const float = Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, { toValue: -6, duration: 1800, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue:  0, duration: 1800, useNativeDriver: true }),
+      ])
+    );
+    float.start();
+    return () => float.stop();
+  }, []);
+
+  // ── Animasi per state ─────────────────────────────────────────────────
+  useEffect(() => {
+    shakeAnim.setValue(0);
+    bounceAnim.setValue(1);
+
+    if (botState === 'celebrating') {
+      Animated.sequence([
+        Animated.timing(bounceAnim, { toValue: 1.2,  duration: 120, useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 0.92, duration: 100, useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 1.08, duration: 100, useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 1.0,  duration: 100, useNativeDriver: true }),
+      ]).start();
+
+    } else if (botState === 'disappointed_mild') {
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: -5, duration: 70, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue:  5, duration: 70, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -3, duration: 70, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue:  0, duration: 70, useNativeDriver: true }),
+      ]).start();
+
+    } else if (botState === 'speaking_hype') {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(bounceAnim, { toValue: 1.04, duration: 180, useNativeDriver: true }),
+          Animated.timing(bounceAnim, { toValue: 0.98, duration: 180, useNativeDriver: true }),
+        ]),
+        { iterations: 4 }
+      ).start(() => bounceAnim.setValue(1));
+
+    } else if (botState === 'sleeping') {
+      // Pulse opacity pelan untuk efek tidur
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacityAnim, { toValue: 0.6, duration: 2000, useNativeDriver: true }),
+          Animated.timing(opacityAnim, { toValue: 1.0, duration: 2000, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      opacityAnim.setValue(1);
+    }
+  }, [botState]);
+
+  // ── Lip-sync viseme ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (visemeTimerRef.current) clearInterval(visemeTimerRef.current);
+
+    if (!isSpeaking) {
+      setCurrentViseme('X');
+      return;
+    }
+
+    if (visemeData && visemeData.length > 0) {
+      // Mode presisi: data dari Rhubarb [ { time, value }, ... ]
+      // visemeData harus di-pass dari komponen parent saat audio diplay
+      let idx = 0;
+      const startTime = Date.now();
+      const tick = () => {
+        const elapsed = Date.now() - startTime;
+        while (idx < visemeData.length - 1 && visemeData[idx + 1].time * 1000 <= elapsed) {
+          idx++;
+        }
+        setCurrentViseme(visemeData[idx]?.value ?? 'X');
+      };
+      visemeTimerRef.current = setInterval(tick, 40); // ~25fps
+    } else {
+      // Mode fallback: loop urutan viseme sederhana
+      let idx = 0;
+      visemeTimerRef.current = setInterval(() => {
+        setCurrentViseme(SPEAKING_LOOP[idx % SPEAKING_LOOP.length]);
+        idx++;
+      }, 120);
+    }
+
+    return () => {
+      if (visemeTimerRef.current) clearInterval(visemeTimerRef.current);
+    };
+  }, [isSpeaking, visemeData]);
+
+  // ── Render ────────────────────────────────────────────────────────────
+  return (
+    <Animated.View
+      style={[
+        styles.container,
+        style,
+        {
+          opacity: opacityAnim,
+          transform: [
+            { translateY: floatAnim },
+            { translateX: shakeAnim },
+            { scale: bounceAnim },
+          ],
+        },
+      ]}
+    >
+      {/* Layer 1: ekspresi dasar (wajah, rambut, badan) */}
+      <Image
+        source={{ uri: exprUrl }}
+        style={{ width: size, height: size }}
+        resizeMode="contain"
+      />
+
+      {/* Layer 2: viseme mulut — ditumpuk di atas ekspresi, hanya saat speaking */}
+      {isSpeaking && (
+        <Image
+          source={{ uri: visemeUrl }}
+          style={[StyleSheet.absoluteFill, { width: size, height: size }]}
+          resizeMode="contain"
+        />
+      )}
+    </Animated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

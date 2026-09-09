@@ -1,0 +1,70 @@
+// src/store/useStore.js
+// Global state dengan Zustand
+
+import { create } from 'zustand';
+
+export const useStore = create((set, get) => ({
+  // ── Student ────────────────────────────────────────────────────────────
+  student: null,           // { id, name, kelas }
+  currentLevel: 1,
+  setStudent: (s) => set({ student: s }),
+  setLevel:   (l) => set({ currentLevel: l }),
+
+  // ── Session state ──────────────────────────────────────────────────────
+  exercises:       [],     // array soal level aktif
+  currentIndex:    0,      // index soal sekarang
+  sessionResults:  [],     // [{ id, correct, timeMs }]
+  streak:          0,
+  xp:              0,
+
+  setExercises: (ex) => set({ exercises: ex, currentIndex: 0, sessionResults: [] }),
+
+  nextExercise: () => set((s) => ({ currentIndex: s.currentIndex + 1 })),
+
+  recordAnswer: (exerciseId, correct, timeMs) => set((s) => {
+    const streak = correct ? s.streak + 1 : 0;
+    const xp     = s.xp + (correct ? (s.streak >= 5 ? 15 : 10) : 0);
+    return {
+      streak,
+      xp,
+      sessionResults: [...s.sessionResults, { id: exerciseId, correct, timeMs }],
+    };
+  }),
+
+  // ── Bot state ──────────────────────────────────────────────────────────
+  botMode: 'terbimbing',   // 'mandiri' | 'terbimbing' | 'intensif'
+  botState: 'idle',        // 'idle' | 'listening' | 'thinking' | 'speaking_calm'
+                           // | 'speaking_hype' | 'celebrating' | 'disappointed_mild'
+                           // | 'sleeping'
+  setBotMode:  (m) => set({ botMode: m }),
+  setBotState: (s) => set({ botState: s }),
+
+  // ── Confidence Score ───────────────────────────────────────────────────
+  // Dihitung dari sessionResults rolling 20 soal terakhir
+  getConfidenceScore: () => {
+    const results = get().sessionResults.slice(-20);
+    if (results.length < 5) return 0;
+
+    const accuracy = results.filter(r => r.correct).length / results.length;
+
+    const level = get().currentLevel;
+    const TARGET_MS = {
+      1:15000, 2:12000, 3:10000, 4:9000,  5:8000,
+      6:9000,  7:9000,  8:8000,  9:6000,  10:14000,
+      11:17000,12:17000,13:25000,14:25000,15:10000,
+    }[level] || 10000;
+
+    const times = results.filter(r => r.correct && r.timeMs).map(r => r.timeMs);
+    const avgTime = times.length
+      ? times.reduce((a, b) => a + b, 0) / times.length
+      : TARGET_MS * 2;
+    const speedScore = Math.min(1, TARGET_MS / avgTime);
+
+    const variance = times.length > 1
+      ? Math.sqrt(times.map(t => (t - avgTime) ** 2).reduce((a, b) => a + b, 0) / times.length)
+      : avgTime;
+    const consistency = Math.max(0, 1 - variance / avgTime);
+
+    return (accuracy * 0.40) + (speedScore * 0.35) + (consistency * 0.25);
+  },
+}));
