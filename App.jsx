@@ -49,6 +49,12 @@ import ReferrerChangePasswordScreen from './src/screens/ReferrerChangePasswordSc
 // Screens -- Demo Mode
 import DemoHomeScreen from './src/screens/DemoHomeScreen';
 
+// Screens -- Parent Dashboard (Sprint E)
+import ParentDashboardScreen from './src/screens/ParentDashboardScreen';
+import ChildProgressScreen   from './src/screens/ChildProgressScreen';
+import ChildSessionsScreen   from './src/screens/ChildSessionsScreen';
+import ChildBillingScreen    from './src/screens/ChildBillingScreen';
+
 // Screens -- Referrer (Sprint D.7)
 import ReferrerLoginScreen          from './src/screens/ReferrerLoginScreen';
 import ReferrerDashboardScreen      from './src/screens/ReferrerDashboardScreen';
@@ -60,7 +66,9 @@ import ReferrerChangePasswordScreen from './src/screens/ReferrerChangePasswordSc
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const COLORS = { bg: '#0A0A12', surface: '#13131F', cyan: '#00F0FF', muted: '#444455' };
+const COLORS = {
+  bg: '#0A0A12', surface: '#13131F', cyan: '#00F0FF', muted: '#444455',
+};
 
 function TabNavigator() {
   return (
@@ -226,17 +234,16 @@ export default function App() {
               <>
                 <Stack.Screen name='Placement'       component={PlacementScreen} />
                 <Stack.Screen name='PlacementResult' component={PlacementResultScreen} />
-                <Stack.Screen name='ParentAuth'      component={ParentAuthScreen} />
               </>
 
             /* ── MAIN APP (student login + placement done) ───────────── */
             ) : (
               <>
-                <Stack.Screen name='Main'           component={TabNavigator} />
-                <Stack.Screen name='Practice'       component={PracticeScreen} />
-                <Stack.Screen name='FastTrack'      component={FastTrackScreen} />
+                <Stack.Screen name='Main'          component={TabNavigator} />
+                <Stack.Screen name='Practice'      component={PracticeScreen} />
+                <Stack.Screen name='FastTrack'     component={FastTrackScreen} />
                 <Stack.Screen name='UpgradePaywall' component={UpgradePaywallScreen} />
-                <Stack.Screen name='SessionResult'  component={SessionResultScreen} />
+                <Stack.Screen name='SessionResult' component={SessionResultScreen} />
               </>
             )}
 

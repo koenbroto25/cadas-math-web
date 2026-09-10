@@ -132,7 +132,13 @@ export const useStore = create((set, get) => ({
   setTeacherAuth:   (token, teacher) => set({ teacherToken: token, teacher }),
   clearTeacherAuth: ()               => set({ teacherToken: null, teacher: null }),
 
-  // -- Referrer -----------------------------------------------------------
+  // -- Parent ----------------------------------------------------------------
+  parentToken: null,
+  parent: null,
+  setParentAuth: (token, parent) => set({ parentToken: token, parent }),
+  clearParentAuth: () => set({ parentToken: null, parent: null }),
+
+    // -- Referrer -----------------------------------------------------------
   referrerToken: null,
   referrer: null,
   setReferrerAuth:   (token, referrer) => set({ referrerToken: token, referrer }),
@@ -155,4 +161,5 @@ export const useStore = create((set, get) => ({
     return accuracy * 0.40 + speedScore * 0.35 + consistency * 0.25;
   },
 }));
+
 
