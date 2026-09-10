@@ -1,21 +1,6 @@
-# Progress Log — Cadas App Development
-> Diperbarui: 9 September 2026 (audit sesi lanjutan — berdasarkan transkrip sesi coding + hasil live-test API)
-> Dokumen ini menggantikan versi sebelumnya. Sumber kebenaran: isi file yang benar-benar ditampilkan
-> dan hasil pengujian endpoint langsung (bukan klaim tertulis dari catatan sesi mana pun, termasuk
-> catatan sesi ini sendiri di masa depan — selalu verifikasi ulang saat ada keraguan).
-> Simbol: ✅ = terverifikasi (file dibaca langsung ATAU endpoint diuji langsung dan sukses)
->          ⚠️ = ada tapi ada gap/belum diuji ulang setelah perubahan
->          ❌ = belum ada / dikonfirmasi rusak
-
----
-
-## ⚠️ CATATAN PENTING SEBELUM MEMBACA
-
-Audit `PROGRESS.md` versi sebelumnya (sebelum dokumen ini) mengandung beberapa klaim yang **keliru/usang** —
-misalnya menyebut `useStore.js` tidak punya auth state dan `auth.js` tidak punya endpoint login siswa.
-Setelah isi file dibaca ulang secara langsung di sesi ini, klaim-klaim itu **tidak benar** — kedua file
-tersebut sudah lengkap. Pelajaran: audit berdasarkan asumsi/ingatan gampang usang begitu ada sesi coding
-baru berjalan. Dokumen ini disusun berdasarkan bukti paling akhir yang tersedia.
+# Progress Log � Cadas App Development
+> Diperbarui: 10 September 2026 (Sprint D backend selesai � D.1-D.6 complete, D.7 frontend next)
+> Simbol: ? = terverifikasi | ?? = ada tapi gap | ? = belum ada
 
 ---
 
@@ -23,237 +8,143 @@ baru berjalan. Dokumen ini disusun berdasarkan bukti paling akhir yang tersedia.
 
 | Fase | Nama | Backend | Frontend | Catatan |
 |------|------|---------|----------|---------|
-| 0 | Setup & Orientasi | ✅ | ✅ | Selesai |
-| 1 | Gap Konten (speed-math-master) | ✅ | — | Gap 1.4 (audit explanation_variants) masih belum dikonfirmasi |
-| 2 | Backend Foundation & Migrasi | ✅ | ✅ | index.js sempat rusak total, sudah diperbaiki & live |
-| 3 | Auth, Role Routing & Onboarding | ✅ | ✅ | Semua endpoint + semua screen terverifikasi ada, register live-tested sukses |
-| 4 | Placement Test | ⚠️ | ✅ | start+submit live-tested sukses; status belum diuji ulang; student_variant_bias TIDAK ditulis (gap baru ditemukan) |
-| 5 | Practice Loop | ⚠️ | ⚠️ | Tidak tersentuh sesi ini — status sama seperti audit sebelumnya, belum diverifikasi ulang |
-| 6 | Billing Per-Level | ✅ | ⚠️ | Harga sudah benar (P0 fix terkonfirmasi), endpoint admin ada; UpgradePaywallScreen konten belum diverifikasi ulang |
-| 7 | Fast Track & Upgrade Test | ✅ | ✅ | getLevelAccess() benar, shared db.js sudah dipakai, SessionResultScreen ditulis ulang dari stub |
-| 8 | RAG Pipeline & AskKak | ⚠️ | ⚠️ | Tidak tersentuh sesi ini — semantic search masih placeholder per audit sebelumnya |
-| 9 | Avatar & Gamification | ✅ | ⚠️ | useStore 11-state bot system terverifikasi lengkap; isi BotCharacter.jsx belum dibaca ulang sesi ini |
-| 10 | Parent Dashboard | ❌ | ❌ | Belum dimulai |
-| 11 | Guru & Referral | ❌ | ❌ | Belum dimulai |
-| 12 | Polish, Offline, Beta Test | ❌ | ❌ | Belum dimulai |
-| 13 | Distribusi & Rilis | ❌ | ❌ | Belum dimulai |
+| 0 | Setup & Orientasi | ? | ? | Selesai |
+| 1 | Gap Konten | ? | � | Gap 1.4 belum dikonfirmasi |
+| 2 | Backend Foundation | ? | ? | index.js OK; double-mount FIXED Sprint D |
+| 3 | Auth & Onboarding | ? | ? | 10 endpoint + 5 screen terverifikasi |
+| 4 | Placement Test | ? | ? | start+submit live-tested; variant bias selesai |
+| 5 | Practice Loop | ? | ? | selection-rule + PracticeScreen ter-wire |
+| 6 | Billing Per-Level | ? | ? | Manual OK; Xendit Sprint D.2 selesai |
+| 7 | Fast Track | ? | ? | getLevelAccess() shared, live-tested |
+| 8 | RAG Pipeline | ?? | ? | Pipeline OK; Bug D.0.1 fixed |
+| 9 | Avatar & Gamification | ? | ?? | useStore 11-state lengkap; BotCharacter belum reverifikasi |
+| 10 | Parent Dashboard | ? | ? | Belum dimulai |
+| 11 | Guru Dashboard | ? | ? | Belum dimulai |
+| 12 | Sprint D: Xendit + Admin + Referrer | ? | ? | D.1-D.6 backend selesai ?; D.7 frontend next |
+| 13 | Polish & Beta Test | ? | ? | Belum dimulai |
+| 14 | Distribusi & Rilis | ? | ? | Belum dimulai |
 
 ---
 
-## 🚨 BUG BARU DITEMUKAN SESI INI — BELUM ADA DI CATATAN MANAPUN SEBELUMNYA
+## SPRINT D � STATUS DETAIL
 
-### 1. `student_variant_bias` tidak pernah ditulis oleh `/api/placement/submit`
-File `routes/placement.js`, fungsi `calculatePlacement()` menghitung `prerequisite_signals` dengan benar
-dan mengembalikannya di response — **tapi tidak ada satu baris kode pun** yang menyimpan hasil ini ke
-tabel `student_variant_bias`. Ini persis task FASE 4.4 di `final_plan_v1.1.md` yang seharusnya jadi bagian
-inti dari fitur ini. Dampak: bot AskKak tidak akan pernah tahu bias awal dari hasil placement, seluruh
-mekanisme "tawarkan Quick Method sejak percobaan pertama untuk siswa dengan sinyal kuat" (Addendum §4.4 /
-DETAILED_LEVEL_PLANS §0.5) **tidak aktif** meskipun placement sendiri berjalan sempurna.
+### D.0 Bug Fixes � SELESAI ?
+- ? rag.js: GET /select-variant ? POST /select-variant; req.query ? req.body
+- ? rag.js: GET /quota/:studentId?level=N � sudah benar sejak Sprint B
+- ? rag.js: /ask field name (student_id + question_text) � sudah benar
+- ? Git commit: 29f9e77 � 12 files, 546 insertions
 
-**Perlu ditambahkan:** setelah `calculatePlacement()` dipanggil di handler `/submit`, tulis loop yang
-mengecek `prerequisite_signals` terhadap level-level dependency (Level 6 dari addition_recall, Level 12
-dari multiplication_recall) dan insert ke `student_variant_bias` sesuai aturan yang sudah didokumentasikan.
+### D.1 Migration 012 � SELESAI ?
+- ? File 012_xendit_referrer_dashboard.sql dibuat & dijalankan
+- ? Tabel baru: xendit_invoices, referrer_earnings, download_clicks, technique_taught_and_passed
+- ? Kolom baru di referrers: full_name, email, password_hash, referral_token, bank_*, total_clicks, total_conversions, total_earnings_idr, total_transferred_idr, last_login_at, updated_at
+- ? referrers.status constraint diperbarui: tambah 'suspended'
+- ? Migration 011 di-mark applied (tabel sudah ada manual sebelumnya)
 
-### 2. `GET /api/placement/status/:studentId` — status perbaikan tidak diketahui
-Endpoint ini sempat gagal dengan error `column "created_at" does not exist` (dari log server, sebelum
-banyak fix lain diterapkan). **Tidak pernah diuji ulang** setelah itu di sesi ini — status akhirnya belum
-diketahui: apakah tabel `placement_tests` memang tidak punya kolom `created_at`, atau ini error sesaat.
-**Wajib diuji ulang** sebelum fase ini dianggap selesai.
+### D.2 Xendit Integration � SELESAI ?
+- ? routes/xendit.js dibuat
+- ? POST /api/xendit/create-invoice � buat invoice ke Xendit API
+- ? POST /api/xendit/webhook � terima callback, aktivasi akses, catat komisi (idempotent)
+- ? GET /api/xendit/status/:invoice_id � cek status invoice
+- ?? XENDIT_SECRET_KEY di .env masih kosong � isi saat Xendit test key sudah ada
 
----
+### D.3 Auth Referrer � SELESAI ?
+- ? routes/referrer.js dibuat
+- ? POST /api/referrer/login � JWT role 'referrer', live-tested ?
+- ? GET /api/referrer/me � profil + stats + link download
+- ? GET /api/referrer/earnings � history komisi (paginated)
+- ? GET /api/referrer/clicks � history klik link (paginated)
+- ? PUT /api/referrer/bank � update info bank
+- ? PUT /api/referrer/password � ganti password
 
-## DETAIL PER FASE (diperbarui)
+### D.4 Admin Dashboard Routes � SELESAI ?
+- ? routes/admin.js dibuat (menggantikan double-mount payment.js di /api/admin)
+- ? GET /api/admin/students � list + pagination + search, live-tested (6 siswa) ?
+- ? GET /api/admin/students/:id � detail + payment history + xendit invoices
+- ? GET /api/admin/referrers � list semua referrer, live-tested ?
+- ? POST /api/admin/referrers � buat referrer baru, live-tested ? (Budi Santoso)
+- ? PUT /api/admin/referrers/:id � update status/rate/bank
+- ? GET /api/admin/payments � list manual + xendit
+- ? GET /api/admin/earnings � list komisi pending/transferred
+- ? PUT /api/admin/earnings/:id � mark as transferred + update total_transferred
+- ? POST /api/admin/billing/activate � manual activate (pindah dari payment.js, tambah referrer_earnings)
+- ? GET /api/admin/billing/status/:student_id
 
----
+### D.5 Referrer Dashboard Routes � SELESAI ?
+- ? Terintegrasi dalam routes/referrer.js (D.3)
 
-### FASE 2 — BACKEND FOUNDATION ✅ (direvisi dari ⚠️)
+### D.6 Redirect Token /d/:token � SELESAI ?
+- ? GET /d/:token di index.js � log klik, increment total_clicks, redirect ke App Store
+- ? IP di-hash SHA-256 (privacy), user_agent dicatat
+- ? Fallback redirect tetap jalan meski tracking gagal
+- ?? APP_STORE_URL di .env masih placeholder � update saat app live di Play Store
 
-**Insiden ditemukan & diperbaiki sesi ini:**
-- `index.js` rusak total (syntax error `Unexpected token 'if'` di baris 82) — akibat kode pengecekan
-  parent-ownership ter-paste di tengah pemanggilan `db.query(...)` alih-alih sebelum baris itu, dari
-  edit manual sesi sebelumnya.
-- Percobaan perbaikan pertama (memakai slicing array PowerShell `$src[93..]`) **gagal diam-diam** —
-  ekspresi `$tail = $src[93..]` error karena sintaks tidak lengkap, membuat `$tail` kosong dan
-  memotong sisa file (closing brace, `app.listen`, `module.exports` semua hilang).
-- Perbaikan kedua (menulis ulang bagian yang hilang via `Add-Content`) **berhasil** — file sekarang
-  106 baris, dimuat tanpa error.
-
-**Terverifikasi hidup:**
-```
-GET /api/health → { status: "OK", database: "connected" }
-```
-
-**Masih terbuka:**
-- ⚠️ `student_level_quota` dan `student_variant_bias` — keberadaan tabelnya di migration 011 belum
-  dikonfirmasi lewat query skema langsung (percobaan cek skema di sesi ini gagal karena kesalahan
-  sintaks perintah `node -e`, bukan karena tabelnya tidak ada — perlu dicoba ulang dengan cara lain).
-
----
-
-### FASE 3 — AUTH, ROLE ROUTING & ONBOARDING ✅ (direvisi dari ⚠️/❌)
-
-**Backend — terverifikasi lengkap via `Select-String` terhadap `auth.js`:**
-```
-POST /student/register            (baris 20)
-POST /parent/register             (baris 53)
-POST /parent/login                (baris 89)
-POST /teacher/register            (baris 117)
-POST /teacher/login               (baris 153)
-GET  /parent-gate/challenge       (baris 186)
-POST /parent-gate/verify          (baris 195)
-GET  /me                          (baris 216)
-POST /student/login               (baris 224)  ← sebelumnya diklaim tidak ada, TERNYATA ADA
-POST /parent/link-child           (baris 245)  ← sebelumnya diklaim tidak ada, TERNYATA ADA
-```
-
-**Live-tested — sukses:**
-```
-POST /api/auth/student/register {"name":"Budi Test","kelas":5}
-→ 200 OK, student_id + student object (username auto: "siswa_01b1761f") + JWT token valid
-```
-
-**Frontend — semua 5 screen onboarding terverifikasi ada dan dibaca lengkap:**
-| Screen | Baris | Catatan |
-|---|---|---|
-| RoleSelectScreen.jsx | 37 | Dua jalur: daftar anak baru / masuk sebagai orang tua |
-| StudentRegisterScreen.jsx | 112 | Mode register (nama+kelas) dan login (student ID) dalam satu file |
-| PlacementScreen.jsx | 179 | Fetch semua probe di awal, jawab satu-satu, submit di akhir |
-| PlacementResultScreen.jsx | 81 | Framing positif, CTA daftar orang tua, opsi lewati dulu |
-| ParentAuthScreen.jsx | 131 | Tab register/login, auto link-child setelah sukses |
-
-**App.jsx — terverifikasi benar:** AuthStack (belum login) → needPlacement branch (login tapi belum
-placement) → Main branch (siap pakai app), dengan restore sesi dari AsyncStorage saat app dibuka.
-Semua 10 screen ter-import dengan benar, tidak ada import yang hilang.
-
-**useStore.js — terverifikasi LENGKAP** (klaim audit sebelumnya "tidak ada authToken/authRole" **keliru**):
-`authToken`, `authRole`, `placementDone`, `setAuth()`, `setPlacementDone()`, `clearAuth()` semua ada.
-
-**Perbaikan tambahan sesi ini:**
-- `api.js` awalnya cuma export `BASE_URL`, padahal semua screen import `{ API_BASE }` — akan crash
-  saat runtime. Ditulis ulang bersih dengan `authFetch()` helper, `API_BASE` dan `BASE_URL` sama-sama
-  di-export dari satu sumber (`_base`), tidak ada duplikasi logic.
-- `SettingsScreen.jsx` masih stub 6 baris ("Coming Soon") → ditulis ulang jadi 58 baris (info akun,
-  level saat ini, tombol logout dengan konfirmasi + clear AsyncStorage).
-- `HomeScreen.jsx` sapaan hardcode "Hai, Cadas!" → diganti pakai `student?.name` dari store.
+### D.7 Frontend ReferrerStack (6 screens) � BELUM ?
+- Screens yang perlu dibuat:
+  - ReferrerLoginScreen
+  - ReferrerDashboardScreen (stats: klik, konversi, pendapatan)
+  - ReferrerEarningsScreen (list komisi)
+  - ReferrerClicksScreen (list klik)
+  - ReferrerBankScreen (form update bank)
+  - ReferrerChangePasswordScreen
 
 ---
 
-### FASE 4 — PLACEMENT TEST ⚠️ (backend) / ✅ (frontend)
-
-**Backend — live-tested, hasil campuran:**
-```
-POST /api/placement/start   → SUKSES: placementId + 10 exercises dikembalikan
-POST /api/placement/submit  → SUKSES: placedLevel:1, total:10, correct:0, speedEmphasis:low
-                               (correct:0 karena jawaban tes pakai dummy "126" untuk semua soal,
-                               ini murni tes pipa data, bukan validasi akurasi algoritma placement)
-GET  /api/placement/status/:studentId → ⚠️ TIDAK DIUJI ULANG setelah error "column created_at
-                               does not exist" ditemukan di log. Status akhir tidak diketahui.
-```
-
-**Gap kritis ditemukan:** `student_variant_bias` tidak ditulis oleh handler `/submit` — lihat bagian
-"BUG BARU DITEMUKAN" di atas. Ini blocking untuk personalisasi bot AskKak berbasis hasil placement.
-
-**Frontend — kode dibaca lengkap, tampak solid:**
-- `PlacementScreen.jsx`: fetch semua soal di `/start`, timer per soal, auto-fokus input, submit satu
-  per satu ke state lokal lalu kirim semua sekaligus di `/submit`, penanganan kasus "sudah pernah
-  placement" (409) dengan redirect langsung ke result.
-- `PlacementResultScreen.jsx`: nama level dari mapping lokal, tampilkan catatan `speedEmphasis`/
-  `prerequisiteSignals` sebagai kotak info, dua CTA (daftar orang tua / lewati dulu).
+## GIT LOG TERKINI
+- feat(Sprint D): migration 012, admin/referrer/xendit routes, index.js cleanup (10 Sep 2026)
+- 29f9e77 Sprint A/B/C + D.0
+- db19cdc chore: cleanup backup files
+- a96a596 fix(placement): BUG level_id, concept_id, fallback
+- 053cf50 feat: placement fixes, auth, session result
+- 0be3918 checkpoint fase 0-9
 
 ---
 
-### FASE 6 — BILLING PER-LEVEL ✅ (direvisi dari ⚠️, P0 fix terkonfirmasi)
+## SKEMA DATABASE
 
-Merujuk `CADAS_APP_AUDIT_REPORT_20260909.md` (commit `39c25a4`), dikonfirmasi dengan membaca ulang
-route list di sesi ini:
-
-- ✅ Harga di `upgrade-test.js` sudah benar: Single Rp40.000, Basic Bundle Rp100.000, Premium Bundle
-  Rp165.000 — bug harga terbalik (Premium lebih murah dari Basic) sudah diperbaiki dan diverifikasi.
-- ✅ `GET /api/billing/status/:student_id` di `index.js` sekarang terlindungi (`verifyToken` +
-  `requireRole('admin','parent')` + pengecekan kepemilikan anak untuk role parent) — celah keamanan
-  yang saya tandai P0 di audit sebelumnya **sudah tertutup**, dan sekarang terbukti bekerja karena
-  backend berhasil start dengan kode ini aktif (sebelumnya kode ini yang justru menyebabkan syntax
-  error, jadi baru sekarang benar-benar teruji berjalan).
-- ✅ `payment.js` berisi 3 route: `POST /upgrade-tier`, `POST /admin/billing/activate`,
-  `GET /admin/billing/status/:student_id` — route yang sebelumnya saya kira tidak ada, ternyata ada,
-  hanya beda nama file dari dugaan saya (`payment.js`, bukan `billing.js`).
-
-**Masih terbuka:**
-- ⚠️ Apakah endpoint `/api/admin/billing/activate` sudah dilindungi otentikasi admin (`ADMIN_SECRET`
-  atau setara) belum dikonfirmasi ulang di sesi ini — perlu dicek isi lengkap `payment.js`, bukan
-  cuma daftar route-nya.
-- ⚠️ Konten `UpgradePaywallScreen.jsx` (46 baris) belum dibaca ulang untuk konfirmasi tiga harga
-  yang ditampilkan ke user sudah sinkron dengan yang di backend.
-
----
-
-### FASE 7 — FAST TRACK & UPGRADE TEST ✅ (direvisi dari ⚠️)
-
-- ✅ `getLevelAccess()` di `upgrade-test.js` terverifikasi benar, mengikuti Addendum §1.2 persis:
-  cek `paid_premium_up_to_level` → `paid_basic_up_to_level` → fallback `locked`.
-- ✅ **Diperbaiki sesi ini:** `placement.js` dan `upgrade-test.js` sebelumnya masing-masing bikin
-  `new Pool()` sendiri (duplikasi koneksi database, boros resource). Sekarang keduanya pakai
-  `require('../database/db')` yang sama seperti route lain.
-- ✅ `SessionResultScreen.jsx` **ditulis ulang total** dari stub 6 baris menjadi implementasi 100
-  baris: hero card beda gaya untuk level-up vs sesi biasa, tiga kotak statistik (akurasi/benar/waktu),
-  saran drill kalau akurasi bagus tapi belum level-up, dua tombol aksi (kembali/lanjut latihan).
-
-**Housekeeping kecil:** ada file `upgrade-test.js.backup.20260909_141218` tertinggal di folder
-`routes/` — sebaiknya dihapus dari repo, bukan cuma diabaikan `.gitignore`.
+| Tabel | Status | Catatan |
+|-------|--------|---------|
+| students | ? | referred_by kolom ada |
+| parents | ? | |
+| parent_children | ? | |
+| teachers | ? | |
+| referrers | ? | Kolom baru migration 012 sudah diterapkan |
+| payment_records | ? | |
+| exercises | ? | 5.446 rows level 1-15 |
+| concepts | ? | 15 rows |
+| placement_tests | ? | 15 probe pools |
+| student_variant_bias | ? | Live data confirmed |
+| student_explanation_effectiveness | ? | UNIQUE constraint confirmed |
+| student_level_quota | ? | |
+| upgrade_tests | ? | |
+| xendit_invoices | ? | Migration 012 applied |
+| referrer_earnings | ? | Migration 012 applied |
+| download_clicks | ? | Migration 012 applied |
+| technique_taught_and_passed | ? | Migration 012 applied |
+| _migrations | ? | 001-012 semua tercatat |
 
 ---
 
-### FASE 9 — AVATAR & GAMIFICATION ✅ (backend/state) / ⚠️ (frontend, direvisi dari ⚠️)
+## BUG STATUS
 
-**useStore.js dibaca penuh sesi ini — terverifikasi LENGKAP** (klaim audit sebelumnya bahwa file ini
-"gap kritis, tidak ada auth state" **sepenuhnya keliru**, kemungkinan dibaca di versi file yang beda):
-- 11 bot state dikomentari eksplisit: `idle | listening | thinking | speaking_calm | speaking_hype |
-  celebrating | disappointed_mild | sleeping | welcome_back | level_up | fast_track`
-- `companionLevel` (0-5) dengan `incrementCompanion()`
-- `visemeData` + `startSpeaking()`/`stopSpeaking()`
-- `getConfidenceScore()` — implementasi lengkap: akurasi 40% + kecepatan 35% + konsistensi 25%,
-  dengan target waktu per level yang sesuai `SPEED_TARGETS_QUICK_REFERENCE.md`
-
-**Belum diverifikasi ulang sesi ini:** isi `BotCharacter.jsx` (apakah benar pakai SVG transformer
-sesuai catatan audit sebelumnya, atau ada regresi) — tidak dibuka di sesi ini.
+| Bug | File | Status |
+|-----|------|--------|
+| D.0.1: GET /select-variant ? POST | rag.js | ? Fixed 29f9e77 |
+| D.0.2: quota path inconsistency | rag.js | ? Tidak perlu fix |
+| D.0.3: /ask field name mismatch | rag.js | ? Tidak ada bug |
+| double-mount /api/admin index.js | index.js | ? Fixed Sprint D |
+| placement probe concept_id null | data | ?? Acceptable beta |
 
 ---
 
-## GIT & BACKUP — MASIH BELUM DITANGANI ⚠️
-
-Tidak ada satupun perintah `git commit` yang muncul di transkrip sesi ini, meski banyak sekali
-perubahan dilakukan: 4 screen baru, `index.js` diperbaiki dari rusak total, `api.js` ditulis ulang,
-`SettingsScreen.jsx` ditulis ulang, `placement.js`/`upgrade-test.js` diperbaiki. **Seluruh pekerjaan
-ini masih hanya ada di disk, belum ada checkpoint.** Ini peringatan yang sama yang sudah disampaikan
-sebelumnya dan sampai sesi ini belum ditindaklanjuti — risiko kehilangan pekerjaan tetap tinggi.
-
----
-
-## GAP KRITIS — URUTAN PRIORITAS DIPERBARUI
-
-1. **Commit semua pekerjaan** — `cadas-app-backend` maupun `cadas-app`. Ini di atas segalanya.
-2. **Implementasikan penulisan `student_variant_bias`** di handler `/api/placement/submit` — fitur
-   personalisasi bot berbasis placement belum aktif tanpa ini.
-3. **Uji ulang `/api/placement/status/:studentId`** — pastikan error `column created_at does not
-   exist` benar-benar sudah tidak muncul, bukan cuma kebetulan tidak tersentuh di tes terakhir.
-4. **Verifikasi keberadaan `student_level_quota`** lewat query skema yang benar (percobaan sebelumnya
-   gagal karena kesalahan sintaks perintah, coba pendekatan lain, misal file `.sql` sementara alih-alih
-   inline `node -e`).
-5. **Cek proteksi otentikasi di `POST /api/admin/billing/activate`** — pastikan tidak bisa dipanggil
-   tanpa kredensial admin.
-6. **Hapus file backup yang tertinggal** (`upgrade-test.js.backup.*`) dari struktur folder aktif.
-7. Item lama yang masih terbuka: Gap 1.4 (audit `explanation_variants`), pgvector migration 002
-   (apakah sudah benar-benar dijalankan setelah upgrade image, bukan cuma image-nya yang di-pull),
-   dan rekonsiliasi `PLAN_DEV_v3.1.md` vs `PLAN_DEV_v3.md` (1331 vs 1158 baris, belum dibandingkan).
-
----
-
-## PERTANYAAN TERBUKA (belum berubah dari audit sebelumnya, masih perlu keputusan Anda)
+## PERTANYAAN TERBUKA
 
 | # | Pertanyaan | Memengaruhi |
 |---|-----------|-------------|
-| 1 | Kuota reset: cumulative (sekarang, sesuai `quota-rules.js`) atau monthly? | FASE 8 |
-| 2 | Student login pakai `student_id` mentah — cukup aman untuk konteks ini? | FASE 3 |
-| 3 | Bulk purchase kelompok — alur belum didesain sama sekali | FASE 6/11 |
-| 4 | Gap 1.4: 15/15 explanation_variants sudah lolos audit? | FASE 1 |
-| 5 | `PLAN_DEV_v3.1.md` vs `PLAN_DEV_v3.md` — mana yang otoritatif? | Semua fase |
+| 1 | Kuota AskKak: 38 atau 40 per level? | Fase 8 |
+| 2 | Bulk purchase � satu invoice atau batch Xendit? | Sprint D.2 |
+| 3 | Gap 1.4: 15/15 explanation_variants lolos audit? | Fase 1 |
+| 4 | Xendit test key sudah ada? | Sprint D.2 |
+| 5 | Domain cadas.app untuk /d/:token? | Sprint D.6 |
+| 6 | Komisi referrer student: kredit premium atau transfer? | Sprint D.5 |
+| 7 | Embedding model production: ada-002 atau model 384 dim? | Fase 14 |

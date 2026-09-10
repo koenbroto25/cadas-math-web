@@ -1,4 +1,4 @@
-ï»¿// src/services/api.js
+// src/services/api.js
 // Semua komunikasi ke backend Express (cadas-app-backend)
 //
 // Override tanpa ubah kode:
@@ -60,6 +60,19 @@ export const api = {
     authFetch('/api/rag/record-shown',   { method: 'POST', body: JSON.stringify(data) }, token),
   recordVariantHelpful: (data, token) =>
     authFetch('/api/rag/record-helpful', { method: 'POST', body: JSON.stringify(data) }, token),
+
+  // Selection Rule (FASE 8.3b — dipakai PracticeScreen)
+  selectVariant: (studentId, level, conceptId, extra = {}, token) => {
+    const p = new URLSearchParams({
+      student_id: studentId,
+      level: String(level),
+      ...(conceptId ? { concept_id: conceptId } : {}),
+      ...extra,
+    });
+    return authFetch(`/api/rag/select-variant?${p.toString()}`, {}, token);
+  },
+  recordVariantShown:   (data, token) => authFetch('/api/rag/record-shown',   { method: 'POST', body: JSON.stringify(data) }, token),
+  recordVariantHelpful: (data, token) => authFetch('/api/rag/record-helpful', { method: 'POST', body: JSON.stringify(data) }, token),
 
   // Progress
   saveSession: (data, token) =>
@@ -136,3 +149,4 @@ export const api = {
   demoPasscodeRevoke: (id, token) =>
     authFetch(`/api/admin/demo-passcodes/${id}`, { method: 'DELETE' }, token),
 };
+

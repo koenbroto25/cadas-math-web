@@ -49,6 +49,14 @@ import ReferrerChangePasswordScreen from './src/screens/ReferrerChangePasswordSc
 // Screens -- Demo Mode
 import DemoHomeScreen from './src/screens/DemoHomeScreen';
 
+// Screens -- Referrer (Sprint D.7)
+import ReferrerLoginScreen          from './src/screens/ReferrerLoginScreen';
+import ReferrerDashboardScreen      from './src/screens/ReferrerDashboardScreen';
+import ReferrerEarningsScreen       from './src/screens/ReferrerEarningsScreen';
+import ReferrerClicksScreen         from './src/screens/ReferrerClicksScreen';
+import ReferrerBankScreen           from './src/screens/ReferrerBankScreen';
+import ReferrerChangePasswordScreen from './src/screens/ReferrerChangePasswordScreen';
+
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
