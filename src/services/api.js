@@ -1,4 +1,4 @@
-// src/services/api.js
+﻿// src/services/api.js
 // Semua komunikasi ke backend Express (cadas-app-backend)
 //
 // Override tanpa ubah kode:
@@ -61,7 +61,7 @@ export const api = {
   recordVariantHelpful: (data, token) =>
     authFetch('/api/rag/record-helpful', { method: 'POST', body: JSON.stringify(data) }, token),
 
-  // Selection Rule (FASE 8.3b - dipakai PracticeScreen)
+  // Selection Rule (FASE 8.3b)
   selectVariant: (studentId, level, conceptId, extra = {}, token) =>
     authFetch('/api/rag/select-variant', {
       method: 'POST',
@@ -72,8 +72,8 @@ export const api = {
         ...(extra || {}),
       }),
     }, token),
-  recordVariantShown: (data, token) =>
-    authFetch('/api/rag/record-shown', { method: 'POST', body: JSON.stringify(data) }, token),
+  recordVariantShown:   (data, token) =>
+    authFetch('/api/rag/record-shown',   { method: 'POST', body: JSON.stringify(data) }, token),
   recordVariantHelpful: (data, token) =>
     authFetch('/api/rag/record-helpful', { method: 'POST', body: JSON.stringify(data) }, token),
 
@@ -101,9 +101,14 @@ export const api = {
   bgmUrl: (track) => `${_base}/api/bgm/${track}`,
   sfxUrl: (id)    => `${_base}/api/sfx/${id}`,
 
-  // Bot response audio (Sprint G.1 â€” 52 pre-generated)
-  botAudioUrl: (id) => `${_base}/assets/bot/speech/wav/${id}.wav`,
-  botVisemeUrl: (id) => `${_base}/assets/bot/speech/visemes/${id}.json`,
+  // Audio level per level (Gemini master) — Sprint H.4
+  levelVoice:    (level)           => authFetch(`/api/rag/level-voice/${level}`),
+  levelAudioUrl: (level, segment)  =>
+    `${_base}/audio/speech/gemini/opus/L${level}_${segment}.opus`,
+
+  // Bot reaction audio — Sprint H.4 (backend redirect ke R2 Opus)
+  botAudioUrl:  (id) => `${_base}/api/bot-audio/${id}`,
+  botVisemeUrl: (id) => `${_base}/api/viseme/bot_${id}?type=hint`,
 
   // Referrer
   referrerLogin:      (data)        =>
@@ -158,9 +163,9 @@ export const api = {
 };
 
   // Teacher Dashboard (Sprint F)
-  teacherMe: (token) => authFetch('/api/teacher/me', {}, token),
-  teacherStudents: (token) => authFetch('/api/teacher/students', {}, token),
-  teacherProgress: (studentId, token) =>
+  teacherMe:       (token)                       => authFetch('/api/teacher/me', {}, token),
+  teacherStudents: (token)                       => authFetch('/api/teacher/students', {}, token),
+  teacherProgress: (studentId, token)            =>
     authFetch(`/api/teacher/student/${encodeURIComponent(studentId)}/progress`, {}, token),
   teacherSessions: (studentId, page = 1, limit = 20, token) =>
     authFetch(`/api/teacher/student/${encodeURIComponent(studentId)}/sessions?page=${page}&limit=${limit}`, {}, token),
