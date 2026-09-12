@@ -1,4 +1,4 @@
-// src/store/useStore.js
+﻿// src/store/useStore.js
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { targetMsFor } from '../constants/levelTargets';
@@ -133,10 +133,16 @@ export const useStore = create((set, get) => ({
   clearTeacherAuth: ()               => set({ teacherToken: null, teacher: null }),
 
   // -- Parent ----------------------------------------------------------------
-  parentToken: null,
-  parent: null,
-  setParentAuth: (token, parent) => set({ parentToken: token, parent }),
-  clearParentAuth: () => set({ parentToken: null, parent: null }),
+  parentToken:   null,
+  parentProfile: null,
+  setParentAuth:   (token, profile) => set({ parentToken: token, parentProfile: profile }),
+  clearParentAuth: ()               => set({ parentToken: null, parentProfile: null }),
+
+    // -- Teacher ---------------------------------------------------------------
+  teacherToken: null,
+  teacher: null,
+  setTeacherAuth: (token, teacher) => set({ teacherToken: token, teacher }),
+  clearTeacherAuth: () => set({ teacherToken: null, teacher: null }),
 
     // -- Referrer -----------------------------------------------------------
   referrerToken: null,
@@ -161,5 +167,8 @@ export const useStore = create((set, get) => ({
     return accuracy * 0.40 + speedScore * 0.35 + consistency * 0.25;
   },
 }));
+
+
+
 
 

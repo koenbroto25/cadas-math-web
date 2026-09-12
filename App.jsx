@@ -55,6 +55,10 @@ import ChildProgressScreen   from './src/screens/ChildProgressScreen';
 import ChildSessionsScreen   from './src/screens/ChildSessionsScreen';
 import ChildBillingScreen    from './src/screens/ChildBillingScreen';
 
+// Screens -- Teacher Dashboard (Sprint F)
+import TeacherDashboardScreen from './src/screens/TeacherDashboardScreen';
+import StudentDetailScreen    from './src/screens/StudentDetailScreen';
+
 // Screens -- Referrer (Sprint D.7)
 import ReferrerLoginScreen          from './src/screens/ReferrerLoginScreen';
 import ReferrerDashboardScreen      from './src/screens/ReferrerDashboardScreen';
@@ -239,11 +243,11 @@ export default function App() {
             /* ── MAIN APP (student login + placement done) ───────────── */
             ) : (
               <>
-                <Stack.Screen name='Main'          component={TabNavigator} />
-                <Stack.Screen name='Practice'      component={PracticeScreen} />
-                <Stack.Screen name='FastTrack'     component={FastTrackScreen} />
+                <Stack.Screen name='Main'           component={TabNavigator} />
+                <Stack.Screen name='Practice'       component={PracticeScreen} />
+                <Stack.Screen name='FastTrack'      component={FastTrackScreen} />
                 <Stack.Screen name='UpgradePaywall' component={UpgradePaywallScreen} />
-                <Stack.Screen name='SessionResult' component={SessionResultScreen} />
+                <Stack.Screen name='SessionResult'  component={SessionResultScreen} />
               </>
             )}
 
