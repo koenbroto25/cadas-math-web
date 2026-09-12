@@ -1,0 +1,10 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60">
+  <!-- Bibir atas -->
+  <path d="M20 28 Q50 22 80 28" stroke="#1a1a2e" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Bibir bawah maju (labiodental F/V) -->
+  <path d="M22 32 Q50 44 78 32" stroke="#1a1a2e" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Area mulut sedikit terbuka -->
+  <path d="M22 32 Q50 34 78 32 Q50 22 22 32Z" fill="#2a1a1a" opacity="0.6"/>
+  <!-- Gigi atas terlihat sedikit -->
+  <path d="M30 29 Q50 25 70 29 Q50 31 30 29Z" fill="#f0f0f0" opacity="0.8"/>
+</svg>

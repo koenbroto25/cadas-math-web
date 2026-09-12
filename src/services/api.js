@@ -61,18 +61,21 @@ export const api = {
   recordVariantHelpful: (data, token) =>
     authFetch('/api/rag/record-helpful', { method: 'POST', body: JSON.stringify(data) }, token),
 
-  // Selection Rule (FASE 8.3b — dipakai PracticeScreen)
-  selectVariant: (studentId, level, conceptId, extra = {}, token) => {
-    const p = new URLSearchParams({
-      student_id: studentId,
-      level: String(level),
-      ...(conceptId ? { concept_id: conceptId } : {}),
-      ...extra,
-    });
-    return authFetch(`/api/rag/select-variant?${p.toString()}`, {}, token);
-  },
-  recordVariantShown:   (data, token) => authFetch('/api/rag/record-shown',   { method: 'POST', body: JSON.stringify(data) }, token),
-  recordVariantHelpful: (data, token) => authFetch('/api/rag/record-helpful', { method: 'POST', body: JSON.stringify(data) }, token),
+  // Selection Rule (FASE 8.3b - dipakai PracticeScreen)
+  selectVariant: (studentId, level, conceptId, extra = {}, token) =>
+    authFetch('/api/rag/select-variant', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_id: String(studentId),
+        level: Number(level),
+        concept_id: conceptId || null,
+        ...(extra || {}),
+      }),
+    }, token),
+  recordVariantShown: (data, token) =>
+    authFetch('/api/rag/record-shown', { method: 'POST', body: JSON.stringify(data) }, token),
+  recordVariantHelpful: (data, token) =>
+    authFetch('/api/rag/record-helpful', { method: 'POST', body: JSON.stringify(data) }, token),
 
   // Progress
   saveSession: (data, token) =>
@@ -150,3 +153,11 @@ export const api = {
     authFetch(`/api/admin/demo-passcodes/${id}`, { method: 'DELETE' }, token),
 };
 
+  // Teacher Dashboard (Sprint F)
+  teacherMe: (token) => authFetch('/api/teacher/me', {}, token),
+  teacherStudents: (token) => authFetch('/api/teacher/students', {}, token),
+  teacherProgress: (studentId, token) =>
+    authFetch(`/api/teacher/student/${encodeURIComponent(studentId)}/progress`, {}, token),
+  teacherSessions: (studentId, page = 1, limit = 20, token) =>
+    authFetch(`/api/teacher/student/${encodeURIComponent(studentId)}/sessions?page=${page}&limit=${limit}`, {}, token),
+};
