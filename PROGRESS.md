@@ -1,5 +1,5 @@
-﻿# Progress Log - Cadas App Development
-> Diperbarui: 12 September 2026 (Sprint E + F + G.1 selesai)
+# Progress Log - Cadas App Development
+> Diperbarui: 12 September 2026 (Sprint H — Audio Infrastructure SELESAI, H.4-H.6 belum)
 > Simbol: [OK] = terverifikasi live | [!!] = ada tapi ada gap | [NO] = belum ada
 > Catatan: Verifikasi dilakukan dengan membaca file aktual + test endpoint langsung
 
@@ -35,12 +35,86 @@
 | 6 | Billing Per-Level | OK | OK | Manual OK; Xendit selesai |
 | 7 | Fast Track | OK | OK | getLevelAccess() shared, live-tested |
 | 8 | RAG Pipeline | !! | OK | Pipeline OK; Bug D.0.1 fixed |
-| 9 | Avatar & Gamification | OK | OK | BotCharacter + viseme assets committed |
+| 9 | Avatar & Gamification | OK | !! | BotCharacter + viseme OK; bot reaction audio belum terintegrasi |
 | 10 | Parent Dashboard | OK | OK | Sprint E — 4 backend + 4 screens + routing fix |
 | 11 | Teacher Dashboard | OK | !! | Sprint F — backend OK; link-student UI belum ada |
 | 12 | Sprint D: Xendit + Admin + Referrer | OK | OK | D.1-D.7 SEMUA SELESAI |
 | 13 | Sprint G: Polish | !! | !! | level-info endpoint + HomeScreen dinamis OK; sisanya belum |
-| 14 | Distribusi & Rilis | NO | NO | Belum dimulai |
+| 14 | Sprint H: Audio Infrastructure | !! | !! | R2 lengkap 19.886 file; backend+frontend belum diupdate |
+| 15 | Distribusi & Rilis | NO | NO | Belum dimulai |
+
+---
+
+## SPRINT H — AUDIO INFRASTRUCTURE (SEDANG BERJALAN)
+
+### H.1 — Audit & Keputusan Arsitektur (SELESAI)
+- OK Audit total audio: ~3.2 GB WAV (9.996 file)
+- OK Keputusan format: Opus 24kbps mono 48kHz (Android-only, ~6% ukuran asli)
+- OK Keputusan distribusi: 3-layer architecture
+  - Layer 1: Bot reaction audio (52 file) → bundle APK/WPA (require langsung)
+  - Layer 2: Exercise TTS cache → Cloudflare R2 (stream on-demand)
+  - Layer 3: Device cache via expo-file-system (download saat WiFi, future sprint)
+- OK ffmpeg 9.0.1 terinstall via winget
+- OK rclone 1.75.1 terinstall (sudah ada sebelumnya)
+
+### H.2 — Konversi & Upload Bot Audio (SELESAI)
+- OK Konversi 52 WAV → 52 Opus: 9.41 MB → 0.6 MB (94% lebih kecil)
+- OK Output: cadas-app/assets/bot/speech/opus/ (52 file .opus)
+- OK Upload R2: r2:cadas-audio/bot/speech/opus (52 file, 614 KB)
+- OK Upload R2: r2:cadas-audio/bot/speech/visemes (52 JSON, 73 KB)
+- OK Cloudflare R2 bucket: cadas-audio (region Asia Pacific)
+- OK rclone config: remote name "r2" → endpoint R2 Cloudflare
+
+### H.3 — Konversi & Upload Exercise Cache (SELESAI)
+- OK Audit duplikasi: cache (9.771) dan gemini (172) — tidak ada overlap sama sekali
+- OK Identifikasi 44 file WAV corrupt di cache — diserahkan ke Cline untuk regenerasi
+- OK Cline regenerasi 44 file via Gemini TTS: 44/44 OK, 0 corrupt, viseme 1:1 ✅
+- OK Konversi 9.771 WAV cache → Opus: 194.82 MB (dari ~2.981 MB WAV)
+- OK Konversi 120 WAV gemini level → Opus: 12.36 MB (skip 52 duplikat bot)
+- OK Upload r2:cadas-audio/speech/cache/opus — 9.771 file ✅
+- OK Upload r2:cadas-audio/speech/cache/visemes — 9.771 JSON ✅ (hanya 44 baru, 9727 sudah ada)
+- OK Upload r2:cadas-audio/speech/gemini/opus — 120 file ✅
+- OK Upload r2:cadas-audio/speech/gemini/visemes — 120 JSON ✅
+- OK Verifikasi final R2: 19.886 file total, semua folder ✅
+- OK File corrupt list disimpan: corrupt_audio.txt (44 nama, sudah tidak relevan)
+
+### H.4 — Update Backend (BELUM)
+- NO Tambah static route: app.use('/assets/bot', ...) di index.js
+- NO Update /api/tts route: serve dari R2 URL, fallback generate + auto-upload R2
+- NO Environment variable: R2_PUBLIC_URL, R2_BUCKET, R2_ACCESS_KEY, R2_SECRET_KEY
+
+### H.5 — Update Frontend api.js (SEBAGIAN)
+- OK botAudioUrl: (id) => `${_base}/assets/bot/speech/wav/${id}.wav` (sudah ada, perlu update ke R2 URL)
+- OK botVisemeUrl: (id) => `${_base}/assets/bot/speech/visemes/${id}.json` (sama)
+- NO Update URL pointing ke R2 public URL setelah domain setup
+- NO Tambah botOpusUrl: (id) => `${R2_URL}/bot/speech/opus/${id}.opus`
+
+### H.6 — Integrasi Bot Reaction di PracticeScreen (BELUM)
+- NO Mapping logika → file WAV/Opus bot reaction
+- NO playBotAudio() di handleCorrect: bot_correct_01~05, bot_correct_after_wrong, bot_correct_last, bot_correct_weak
+- NO playBotAudio() di handleWrong: bot_wrong_01, bot_wrong_3row, bot_wrong_after_hint, bot_wrong_many, bot_wrong_trick, bot_wrong_weak
+- NO playBotAudio() streak trigger: bot_streak_3, bot_streak_5, bot_streak_10, bot_streak_break_short, bot_streak_break_long
+- NO playBotAudio() idle trigger: bot_idle_30s, bot_idle_60s
+- NO playBotAudio() level-up: bot_levelup_few, bot_levelup_many, bot_levelup_skill_weak, bot_levelup_speed_good, bot_levelup_speed_slow
+- NO playBotAudio() welcome: bot_welcome_l1_l3, bot_welcome_l4_l7, bot_welcome_l8_l12, bot_welcome_l13_l15, bot_welcome_back
+
+### Proyeksi Ukuran Final
+| Aset | WAV | Opus | Di mana |
+|------|-----|------|---------|
+| Bot reaction (52 file) | 9.4 MB | 0.6 MB | Bundle APK + R2 |
+| Exercise cache (9.771 file) | 2.981 MB | ~194 MB | R2 only |
+| Gemini master (172 file) | 203 MB | ~13 MB | R2 only |
+| **Total R2** | **~3.2 GB** | **~208 MB** | **Free tier (< 10 GB)** |
+
+### Urutan Langkah Selanjutnya
+1. ✅ Konversi massal exercise cache WAV → Opus
+2. ✅ Upload exercise cache ke R2
+3. ✅ Konversi + upload gemini WAV → R2
+4. NO Update backend: env vars R2 + /api/tts serve dari R2, fallback generate + auto-upload
+5. NO Update api.js: URL audio pointing ke R2 public URL
+6. NO Integrasi bot reaction di PracticeScreen (H.6)
+7. NO Beli domain cadasmatematika.id di Hostinger
+8. NO Pasang custom domain di R2: audio.cadasmatematika.id
 
 ---
 
@@ -144,6 +218,9 @@
 - feat(Sprint D): migration 012, admin/referrer/xendit routes
 
 ### cadas-app
+- feat(Sprint H): konversi 9.771 cache + 120 gemini WAV → Opus, upload R2 lengkap (19.886 file)
+- feat(Sprint H): konversi 52 bot WAV → Opus, upload R2 cadas-audio
+- feat(Sprint H): api.js botAudioUrl + botVisemeUrl helpers
 - feat(Sprint G): api.js parent methods + HomeScreen level name dinamis
 - feat(Sprint F): BotCharacter viseme assets, HomeScreen, PracticeScreen, AskKak polish
 - feat(Sprint E+F): Parent Dashboard + Teacher Dashboard — routing, screens, store
@@ -170,6 +247,27 @@
 
 ---
 
+## INFRASTRUKTUR AUDIO (Sprint H)
+
+| Komponen | Status | Detail |
+|----------|--------|--------|
+| ffmpeg | OK | v9.0.1 via winget |
+| rclone | OK | v1.75.1, config "r2" → Cloudflare R2 |
+| R2 bucket | OK | cadas-audio, region Asia Pacific |
+| Bot opus R2 | OK | 52 file @ r2:cadas-audio/bot/speech/opus |
+| Bot viseme R2 | OK | 52 JSON @ r2:cadas-audio/bot/speech/visemes |
+| Exercise cache opus R2 | OK | 9.771 file @ r2:cadas-audio/speech/cache/opus (194 MB) |
+| Exercise cache viseme R2 | OK | 9.771 JSON @ r2:cadas-audio/speech/cache/visemes |
+| Gemini level opus R2 | OK | 120 file @ r2:cadas-audio/speech/gemini/opus (12 MB) |
+| Gemini level viseme R2 | OK | 120 JSON @ r2:cadas-audio/speech/gemini/visemes |
+| Total R2 | OK | 19.886 file, ~208 MB, free tier Cloudflare ✅ |
+| Domain audio | NO | cadasmatematika.id tersedia di Hostinger, belum dibeli |
+| Custom domain R2 | NO | audio.cadasmatematika.id — menunggu domain aktif |
+| Backend serve R2 | NO | /api/tts belum diupdate ke R2 URL |
+| Frontend api.js R2 | NO | URL audio belum pointing ke R2 |
+
+---
+
 ## BUG STATUS
 
 | Bug | File | Status |
@@ -181,7 +279,9 @@
 | orphan parent: null di useStore | useStore.js | OK Fixed Sprint E |
 | teacher.total_students crash | TeacherDashboardScreen | OK Fixed Sprint F |
 | HomeScreen levelSub hardcoded | HomeScreen.jsx | OK Fixed Sprint G.1 |
+| api.js botAudioUrl template literal rusak | api.js | OK Fixed Sprint H |
 | placement probe concept_id null | data | !! Acceptable beta |
+| 446 viseme cache gap | speech/cache/visemes | !! Owner akan perbaiki sendiri |
 
 ---
 
@@ -190,8 +290,10 @@
 | # | Pertanyaan | Memengaruhi |
 |---|-----------|-------------|
 | 1 | Xendit test key sudah ada? | Sprint D.2 live test |
-| 2 | Domain cadas.app untuk /d/:token? | Sprint D.6 |
+| 2 | Domain cadasmatematika.id — kapan beli? | R2 custom domain, Sprint H.8 |
 | 3 | Teacher code: format apa? (6 digit angka? kode unik?) | Sprint G.2 |
 | 4 | Link murid-guru: perlu approval dari guru dulu? | Sprint G.2 |
-| 5 | Embedding model production: ada-002 atau 384 dim? | Fase 14 |
+| 5 | Embedding model production: ada-002 atau 384 dim? | Fase 15 |
 | 6 | Push notification: pakai Expo Notifications atau Firebase? | Sprint G.3 |
+| 7 | Bot reaction audio: pakai Opus dari R2 (perlu update api.js) — R2 URL belum public | Sprint H.6 |
+| 8 | R2 public URL: pakai r2.dev sementara atau tunggu domain cadasmatematika.id? | Sprint H.4 |
