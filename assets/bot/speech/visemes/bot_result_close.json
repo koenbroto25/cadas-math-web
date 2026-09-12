@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "soundFile": "D:\\local-rag-voice-bot\\speed-math-master\\audio\\speech\\gemini\\wav\\bot_result_close.wav",
+    "duration": 4.28
+  },
+  "mouthCues": [
+    { "start": 0.00, "end": 0.14, "value": "X" },
+    { "start": 0.14, "end": 0.21, "value": "B" },
+    { "start": 0.21, "end": 0.42, "value": "C" },
+    { "start": 0.42, "end": 0.50, "value": "A" },
+    { "start": 0.50, "end": 0.78, "value": "B" },
+    { "start": 0.78, "end": 0.86, "value": "A" },
+    { "start": 0.86, "end": 1.21, "value": "C" },
+    { "start": 1.21, "end": 1.42, "value": "B" },
+    { "start": 1.42, "end": 1.68, "value": "D" },
+    { "start": 1.68, "end": 1.73, "value": "C" },
+    { "start": 1.73, "end": 1.91, "value": "B" },
+    { "start": 1.91, "end": 2.05, "value": "C" },
+    { "start": 2.05, "end": 2.33, "value": "F" },
+    { "start": 2.33, "end": 2.47, "value": "C" },
+    { "start": 2.47, "end": 2.54, "value": "B" },
+    { "start": 2.54, "end": 2.62, "value": "A" },
+    { "start": 2.62, "end": 2.74, "value": "C" },
+    { "start": 2.74, "end": 2.89, "value": "A" },
+    { "start": 2.89, "end": 3.00, "value": "B" },
+    { "start": 3.00, "end": 3.14, "value": "C" },
+    { "start": 3.14, "end": 3.21, "value": "E" },
+    { "start": 3.21, "end": 3.35, "value": "C" },
+    { "start": 3.35, "end": 4.05, "value": "B" },
+    { "start": 4.05, "end": 4.28, "value": "X" }
+  ]
+}

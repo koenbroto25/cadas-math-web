@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "soundFile": "D:\\local-rag-voice-bot\\speed-math-master\\audio\\speech\\gemini\\wav\\bot_placement_skill.wav",
+    "duration": 4.72
+  },
+  "mouthCues": [
+    { "start": 0.00, "end": 0.26, "value": "X" },
+    { "start": 0.26, "end": 0.30, "value": "B" },
+    { "start": 0.30, "end": 0.34, "value": "C" },
+    { "start": 0.34, "end": 0.48, "value": "B" },
+    { "start": 0.48, "end": 0.62, "value": "C" },
+    { "start": 0.62, "end": 0.69, "value": "B" },
+    { "start": 0.69, "end": 0.76, "value": "D" },
+    { "start": 0.76, "end": 0.83, "value": "B" },
+    { "start": 0.83, "end": 1.04, "value": "D" },
+    { "start": 1.04, "end": 1.11, "value": "C" },
+    { "start": 1.11, "end": 1.18, "value": "B" },
+    { "start": 1.18, "end": 1.53, "value": "C" },
+    { "start": 1.53, "end": 1.88, "value": "B" },
+    { "start": 1.88, "end": 1.94, "value": "A" },
+    { "start": 1.94, "end": 2.00, "value": "C" },
+    { "start": 2.00, "end": 2.08, "value": "A" },
+    { "start": 2.08, "end": 2.22, "value": "C" },
+    { "start": 2.22, "end": 2.29, "value": "B" },
+    { "start": 2.29, "end": 2.43, "value": "H" },
+    { "start": 2.43, "end": 2.50, "value": "C" },
+    { "start": 2.50, "end": 2.57, "value": "B" },
+    { "start": 2.57, "end": 3.04, "value": "X" },
+    { "start": 3.04, "end": 3.12, "value": "C" },
+    { "start": 3.12, "end": 3.20, "value": "A" },
+    { "start": 3.20, "end": 3.46, "value": "B" },
+    { "start": 3.46, "end": 3.60, "value": "C" },
+    { "start": 3.60, "end": 3.68, "value": "A" },
+    { "start": 3.68, "end": 3.84, "value": "D" },
+    { "start": 3.84, "end": 4.12, "value": "E" },
+    { "start": 4.12, "end": 4.30, "value": "A" },
+    { "start": 4.30, "end": 4.72, "value": "X" }
+  ]
+}

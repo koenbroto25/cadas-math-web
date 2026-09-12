@@ -1,5 +1,5 @@
-/**
- * BotCharacter.jsx — FASE 9: Avatar React Native Animated
+﻿/**
+ * BotCharacter.jsx â€” FASE 9: Avatar React Native Animated
  * SVG dari kak_cadas_rive_package_v2, animasi via Animated API (tanpa Rive).
  * Gamification: companion growth, level-up celebration, welcome-back.
  *
@@ -39,7 +39,7 @@ const VISEME = {
   // Rhubarb standard set
   X: V.X, A: V.A, B: V.B, C: V.C, D: V.D, E: V.E,
   F: V.F, G: V.G, H: V.H,
-  // Alias huruf kecil (defensive — jika backend kirim lowercase)
+  // Alias huruf kecil (defensive â€” jika backend kirim lowercase)
   x: V.X, a: V.A, b: V.B, c: V.C, d: V.D, e: V.E,
   f: V.F, g: V.G, h: V.H,
   // Alias fonem lama (defensive — jika ada data lama di DB)
@@ -89,7 +89,7 @@ export default function BotCharacter({ size = 120, style, visemeData = null, sho
   const isSpeaking = botState === 'speaking_calm' || botState === 'speaking_hype';
   const exprAsset  = EXPR_MAP[botState] || EXPR.idle;
 
-  // Resolve viseme — uppercase defensive, fallback ke X jika kode tidak dikenal
+  // Resolve viseme â€” uppercase defensive, fallback ke X jika kode tidak dikenal
   const visemeAsset = VISEME[currentViseme.toUpperCase()] || V.X;
 
   // â”€â”€ Crossfade saat ekspresi berubah â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -196,7 +196,7 @@ export default function BotCharacter({ size = 120, style, visemeData = null, sho
     }
 
     if (visemeData && visemeData.mouthCues && visemeData.mouthCues.length > 0) {
-      // Data Rhubarb / pcmToVisemes tersedia — sinkron per timestamp
+      // Data Rhubarb / pcmToVisemes tersedia â€” sinkron per timestamp
       const cues = visemeData.mouthCues;
       const startTime = Date.now();
       const tick = () => {
@@ -206,7 +206,7 @@ export default function BotCharacter({ size = 120, style, visemeData = null, sho
       };
       visemeTimerRef.current = setInterval(tick, 40);
     } else {
-      // Fallback loop — saat premium live TTS belum punya viseme (Sprint G.2)
+      // Fallback loop â€” saat premium live TTS belum punya viseme (Sprint G.2)
       let idx = 0;
       visemeTimerRef.current = setInterval(() => {
         setCurrentViseme(SPEAKING_LOOP[idx % SPEAKING_LOOP.length]);

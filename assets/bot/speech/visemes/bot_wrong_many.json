@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "soundFile": "D:\\local-rag-voice-bot\\speed-math-master\\audio\\speech\\gemini\\wav\\bot_wrong_many.wav",
+    "duration": 4.68
+  },
+  "mouthCues": [
+    { "start": 0.00, "end": 0.16, "value": "X" },
+    { "start": 0.16, "end": 0.32, "value": "B" },
+    { "start": 0.32, "end": 0.51, "value": "D" },
+    { "start": 0.51, "end": 0.56, "value": "C" },
+    { "start": 0.56, "end": 1.30, "value": "B" },
+    { "start": 1.30, "end": 1.37, "value": "C" },
+    { "start": 1.37, "end": 1.51, "value": "B" },
+    { "start": 1.51, "end": 1.70, "value": "C" },
+    { "start": 1.70, "end": 1.75, "value": "E" },
+    { "start": 1.75, "end": 2.07, "value": "F" },
+    { "start": 2.07, "end": 2.28, "value": "B" },
+    { "start": 2.28, "end": 2.61, "value": "X" },
+    { "start": 2.61, "end": 2.69, "value": "B" },
+    { "start": 2.69, "end": 2.77, "value": "A" },
+    { "start": 2.77, "end": 2.91, "value": "E" },
+    { "start": 2.91, "end": 2.98, "value": "H" },
+    { "start": 2.98, "end": 3.05, "value": "C" },
+    { "start": 3.05, "end": 3.26, "value": "F" },
+    { "start": 3.26, "end": 3.61, "value": "B" },
+    { "start": 3.61, "end": 3.68, "value": "C" },
+    { "start": 3.68, "end": 3.76, "value": "A" },
+    { "start": 3.76, "end": 3.89, "value": "C" },
+    { "start": 3.89, "end": 4.03, "value": "F" },
+    { "start": 4.03, "end": 4.10, "value": "B" },
+    { "start": 4.10, "end": 4.31, "value": "C" },
+    { "start": 4.31, "end": 4.45, "value": "B" },
+    { "start": 4.45, "end": 4.68, "value": "X" }
+  ]
+}

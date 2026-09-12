@@ -1,0 +1,13 @@
+{
+  "metadata": {
+    "soundFile": "D:\\local-rag-voice-bot\\speed-math-master\\audio\\speech\\gemini\\wav\\bot_correct_02.wav",
+    "duration": 1.56
+  },
+  "mouthCues": [
+    { "start": 0.00, "end": 0.16, "value": "X" },
+    { "start": 0.16, "end": 0.66, "value": "B" },
+    { "start": 0.66, "end": 1.08, "value": "C" },
+    { "start": 1.08, "end": 1.29, "value": "B" },
+    { "start": 1.29, "end": 1.56, "value": "X" }
+  ]
+}

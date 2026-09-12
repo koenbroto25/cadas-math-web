@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "soundFile": "D:\\local-rag-voice-bot\\speed-math-master\\audio\\speech\\gemini\\wav\\bot_idle_30s.wav",
+    "duration": 2.96
+  },
+  "mouthCues": [
+    { "start": 0.00, "end": 0.25, "value": "X" },
+    { "start": 0.25, "end": 0.32, "value": "B" },
+    { "start": 0.32, "end": 0.39, "value": "A" },
+    { "start": 0.39, "end": 0.46, "value": "D" },
+    { "start": 0.46, "end": 0.52, "value": "B" },
+    { "start": 0.52, "end": 0.66, "value": "F" },
+    { "start": 0.66, "end": 0.74, "value": "A" },
+    { "start": 0.74, "end": 1.31, "value": "B" },
+    { "start": 1.31, "end": 1.69, "value": "X" },
+    { "start": 1.69, "end": 1.77, "value": "B" },
+    { "start": 1.77, "end": 1.85, "value": "A" },
+    { "start": 1.85, "end": 1.92, "value": "D" },
+    { "start": 1.92, "end": 1.99, "value": "A" },
+    { "start": 1.99, "end": 2.13, "value": "F" },
+    { "start": 2.13, "end": 2.41, "value": "B" },
+    { "start": 2.41, "end": 2.55, "value": "E" },
+    { "start": 2.55, "end": 2.62, "value": "B" },
+    { "start": 2.62, "end": 2.96, "value": "X" }
+  ]
+}

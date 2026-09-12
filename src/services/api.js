@@ -1,4 +1,4 @@
-﻿// src/services/api.js
+// src/services/api.js
 // Semua komunikasi ke backend Express (cadas-app-backend)
 //
 // Override tanpa ubah kode:
@@ -100,6 +100,10 @@ export const api = {
   // domain/CDN tidak butuh rebuild APK.
   bgmUrl: (track) => `${_base}/api/bgm/${track}`,
   sfxUrl: (id)    => `${_base}/api/sfx/${id}`,
+
+  // Bot response audio (Sprint G.1 â€” 52 pre-generated)
+  botAudioUrl: (id) => `${_base}/assets/bot/speech/wav/${id}.wav`,
+  botVisemeUrl: (id) => `${_base}/assets/bot/speech/visemes/${id}.json`,
 
   // Referrer
   referrerLogin:      (data)        =>

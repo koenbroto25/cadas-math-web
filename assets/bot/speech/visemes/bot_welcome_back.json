@@ -1,0 +1,25 @@
+{
+  "metadata": {
+    "soundFile": "D:\\local-rag-voice-bot\\speed-math-master\\audio\\speech\\gemini\\wav\\bot_welcome_back.wav",
+    "duration": 2.76
+  },
+  "mouthCues": [
+    { "start": 0.00, "end": 0.26, "value": "X" },
+    { "start": 0.26, "end": 0.31, "value": "B" },
+    { "start": 0.31, "end": 0.35, "value": "F" },
+    { "start": 0.35, "end": 0.42, "value": "C" },
+    { "start": 0.42, "end": 0.56, "value": "F" },
+    { "start": 0.56, "end": 0.67, "value": "A" },
+    { "start": 0.67, "end": 0.91, "value": "B" },
+    { "start": 0.91, "end": 1.05, "value": "C" },
+    { "start": 1.05, "end": 1.12, "value": "B" },
+    { "start": 1.12, "end": 1.50, "value": "X" },
+    { "start": 1.50, "end": 1.55, "value": "B" },
+    { "start": 1.55, "end": 1.60, "value": "H" },
+    { "start": 1.60, "end": 1.67, "value": "C" },
+    { "start": 1.67, "end": 2.09, "value": "B" },
+    { "start": 2.09, "end": 2.30, "value": "C" },
+    { "start": 2.30, "end": 2.44, "value": "B" },
+    { "start": 2.44, "end": 2.76, "value": "X" }
+  ]
+}
