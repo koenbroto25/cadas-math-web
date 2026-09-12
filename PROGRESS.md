@@ -1,24 +1,6 @@
-# Progress Log - Cadas App Development
-> Diperbarui: 12 September 2026 (Sprint H — Audio Infrastructure SELESAI, H.4-H.6 belum)
-> Simbol: [OK] = terverifikasi live | [!!] = ada tapi ada gap | [NO] = belum ada
-> Catatan: Verifikasi dilakukan dengan membaca file aktual + test endpoint langsung
-
----
-
-## PERBEDAAN DOKUMEN vs APLIKASI AKTUAL (ditemukan 12 Sep 2026)
-
-| # | Yang tercatat di PROGRESS.md lama | Kondisi aktual di kode |
-|---|-----------------------------------|------------------------|
-| 1 | Sprint E status: NO | Sudah ada — routes/parent.js + 4 screens sudah dibuat sebelumnya |
-| 2 | Sprint F status: NO | Sudah ada — routes/teacher.js + 3 screens sudah dibuat sebelumnya |
-| 3 | parentToken tidak ada di bootstrap App.jsx | Bug nyata — sudah diperbaiki sesi ini |
-| 4 | isParent routing stack tidak ada | Bug nyata — Parent screens stuck di Main Stack student; sudah diperbaiki |
-| 5 | useStore tidak punya parentToken/setParentAuth | Sebagian sudah ada tapi ada key orphan `parent: null`; sudah dibersihkan |
-| 6 | ParentAuthScreen punya `authToken` unused | Bug minor — sudah dibersihkan |
-| 7 | TeacherDashboardScreen: `teacher.total_students` crash jika teacher null | Bug nyata — sudah fix optional chaining |
-| 8 | HomeScreen levelSub hardcoded "Penjumlahan Dasar" | Bug nyata — sudah dinamis dari /api/exercises/level-info/:id |
-| 9 | api.js tidak punya parent methods | Gap nyata — sudah ditambahkan parentChildren/Progress/Sessions/Billing |
-| 10 | Teacher link-student UI di sisi murid | Belum ada sama sekali (frontend + backend kode guru) |
+﻿# Progress Log - Cadas App Development
+> Diperbarui: 13 September 2026 (Sprint H.4-H.6 selesai)
+> Simbol: [OK] = terverifikasi live | [!!] = ada tapi gap | [NO] = belum ada
 
 ---
 
@@ -31,199 +13,135 @@
 | 2 | Backend Foundation | OK | OK | index.js OK |
 | 3 | Auth & Onboarding | OK | OK | 10 endpoint + 5 screen terverifikasi |
 | 4 | Placement Test | OK | OK | start+submit live-tested |
-| 5 | Practice Loop | OK | OK | selection-rule + PracticeScreen (382 baris) |
+| 5 | Practice Loop | OK | OK | selection-rule + PracticeScreen 382→420 baris |
 | 6 | Billing Per-Level | OK | OK | Manual OK; Xendit selesai |
 | 7 | Fast Track | OK | OK | getLevelAccess() shared, live-tested |
 | 8 | RAG Pipeline | !! | OK | Pipeline OK; Bug D.0.1 fixed |
-| 9 | Avatar & Gamification | OK | !! | BotCharacter + viseme OK; bot reaction audio belum terintegrasi |
-| 10 | Parent Dashboard | OK | OK | Sprint E — 4 backend + 4 screens + routing fix |
-| 11 | Teacher Dashboard | OK | !! | Sprint F — backend OK; link-student UI belum ada |
+| 9 | Avatar & Gamification | OK | OK | BotCharacter + viseme + 52 bot audio mapped |
+| 10 | Parent Dashboard | OK | OK | Sprint E selesai |
+| 11 | Teacher Dashboard | OK | OK | Sprint F selesai + G.2 link-guru UI |
 | 12 | Sprint D: Xendit + Admin + Referrer | OK | OK | D.1-D.7 SEMUA SELESAI |
-| 13 | Sprint G: Polish | !! | !! | level-info endpoint + HomeScreen dinamis OK; sisanya belum |
-| 14 | Sprint H: Audio Infrastructure | !! | !! | R2 lengkap 19.886 file; backend+frontend belum diupdate |
+| 13 | Sprint G: Polish | OK | OK | G.1 + G.2 selesai; G.3 belum |
+| 14 | Sprint H: Audio Infrastructure | OK | OK | H.1-H.6 selesai; domain R2 belum |
 | 15 | Distribusi & Rilis | NO | NO | Belum dimulai |
 
 ---
 
-## SPRINT H — AUDIO INFRASTRUCTURE (SEDANG BERJALAN)
+## PERBEDAAN DOKUMEN vs APLIKASI AKTUAL (ditemukan & diperbaiki 12-13 Sep 2026)
 
-### H.1 — Audit & Keputusan Arsitektur (SELESAI)
-- OK Audit total audio: ~3.2 GB WAV (9.996 file)
-- OK Keputusan format: Opus 24kbps mono 48kHz (Android-only, ~6% ukuran asli)
-- OK Keputusan distribusi: 3-layer architecture
-  - Layer 1: Bot reaction audio (52 file) → bundle APK/WPA (require langsung)
-  - Layer 2: Exercise TTS cache → Cloudflare R2 (stream on-demand)
-  - Layer 3: Device cache via expo-file-system (download saat WiFi, future sprint)
-- OK ffmpeg 9.0.1 terinstall via winget
-- OK rclone 1.75.1 terinstall (sudah ada sebelumnya)
-
-### H.2 — Konversi & Upload Bot Audio (SELESAI)
-- OK Konversi 52 WAV → 52 Opus: 9.41 MB → 0.6 MB (94% lebih kecil)
-- OK Output: cadas-app/assets/bot/speech/opus/ (52 file .opus)
-- OK Upload R2: r2:cadas-audio/bot/speech/opus (52 file, 614 KB)
-- OK Upload R2: r2:cadas-audio/bot/speech/visemes (52 JSON, 73 KB)
-- OK Cloudflare R2 bucket: cadas-audio (region Asia Pacific)
-- OK rclone config: remote name "r2" → endpoint R2 Cloudflare
-
-### H.3 — Konversi & Upload Exercise Cache (SELESAI)
-- OK Audit duplikasi: cache (9.771) dan gemini (172) — tidak ada overlap sama sekali
-- OK Identifikasi 44 file WAV corrupt di cache — diserahkan ke Cline untuk regenerasi
-- OK Cline regenerasi 44 file via Gemini TTS: 44/44 OK, 0 corrupt, viseme 1:1 ✅
-- OK Konversi 9.771 WAV cache → Opus: 194.82 MB (dari ~2.981 MB WAV)
-- OK Konversi 120 WAV gemini level → Opus: 12.36 MB (skip 52 duplikat bot)
-- OK Upload r2:cadas-audio/speech/cache/opus — 9.771 file ✅
-- OK Upload r2:cadas-audio/speech/cache/visemes — 9.771 JSON ✅ (hanya 44 baru, 9727 sudah ada)
-- OK Upload r2:cadas-audio/speech/gemini/opus — 120 file ✅
-- OK Upload r2:cadas-audio/speech/gemini/visemes — 120 JSON ✅
-- OK Verifikasi final R2: 19.886 file total, semua folder ✅
-- OK File corrupt list disimpan: corrupt_audio.txt (44 nama, sudah tidak relevan)
-
-### H.4 — Update Backend (BELUM)
-- NO Tambah static route: app.use('/assets/bot', ...) di index.js
-- NO Update /api/tts route: serve dari R2 URL, fallback generate + auto-upload R2
-- NO Environment variable: R2_PUBLIC_URL, R2_BUCKET, R2_ACCESS_KEY, R2_SECRET_KEY
-
-### H.5 — Update Frontend api.js (SEBAGIAN)
-- OK botAudioUrl: (id) => `${_base}/assets/bot/speech/wav/${id}.wav` (sudah ada, perlu update ke R2 URL)
-- OK botVisemeUrl: (id) => `${_base}/assets/bot/speech/visemes/${id}.json` (sama)
-- NO Update URL pointing ke R2 public URL setelah domain setup
-- NO Tambah botOpusUrl: (id) => `${R2_URL}/bot/speech/opus/${id}.opus`
-
-### H.6 — Integrasi Bot Reaction di PracticeScreen (BELUM)
-- NO Mapping logika → file WAV/Opus bot reaction
-- NO playBotAudio() di handleCorrect: bot_correct_01~05, bot_correct_after_wrong, bot_correct_last, bot_correct_weak
-- NO playBotAudio() di handleWrong: bot_wrong_01, bot_wrong_3row, bot_wrong_after_hint, bot_wrong_many, bot_wrong_trick, bot_wrong_weak
-- NO playBotAudio() streak trigger: bot_streak_3, bot_streak_5, bot_streak_10, bot_streak_break_short, bot_streak_break_long
-- NO playBotAudio() idle trigger: bot_idle_30s, bot_idle_60s
-- NO playBotAudio() level-up: bot_levelup_few, bot_levelup_many, bot_levelup_skill_weak, bot_levelup_speed_good, bot_levelup_speed_slow
-- NO playBotAudio() welcome: bot_welcome_l1_l3, bot_welcome_l4_l7, bot_welcome_l8_l12, bot_welcome_l13_l15, bot_welcome_back
-
-### Proyeksi Ukuran Final
-| Aset | WAV | Opus | Di mana |
-|------|-----|------|---------|
-| Bot reaction (52 file) | 9.4 MB | 0.6 MB | Bundle APK + R2 |
-| Exercise cache (9.771 file) | 2.981 MB | ~194 MB | R2 only |
-| Gemini master (172 file) | 203 MB | ~13 MB | R2 only |
-| **Total R2** | **~3.2 GB** | **~208 MB** | **Free tier (< 10 GB)** |
-
-### Urutan Langkah Selanjutnya
-1. ✅ Konversi massal exercise cache WAV → Opus
-2. ✅ Upload exercise cache ke R2
-3. ✅ Konversi + upload gemini WAV → R2
-4. NO Update backend: env vars R2 + /api/tts serve dari R2, fallback generate + auto-upload
-5. NO Update api.js: URL audio pointing ke R2 public URL
-6. NO Integrasi bot reaction di PracticeScreen (H.6)
-7. NO Beli domain cadasmatematika.id di Hostinger
-8. NO Pasang custom domain di R2: audio.cadasmatematika.id
+| # | Gap yang ditemukan | Status |
+|---|-------------------|--------|
+| 1 | parentToken tidak di-restore saat boot | FIXED |
+| 2 | isParent routing stack salah (stuck di Main) | FIXED |
+| 3 | orphan key `parent: null` di useStore | FIXED |
+| 4 | TeacherDashboard crash jika teacher null | FIXED |
+| 5 | HomeScreen levelSub hardcoded | FIXED |
+| 6 | api.js duplikat + entry rusak botAudio/parent | FIXED |
+| 7 | PracticeScreen bot audio tidak terhubung ke 52 file | FIXED |
+| 8 | /api/tts masih serve lokal WAV bukan R2 Opus | FIXED |
 
 ---
 
 ## SPRINT E — PARENT DASHBOARD (SELESAI)
 
-### Backend
-- OK GET /api/parent/children — list anak + total_sessions, akurasi
-- OK GET /api/parent/child/:id/progress — per level + stats keseluruhan
-- OK GET /api/parent/child/:id/sessions — paginated (page, limit)
-- OK GET /api/parent/child/:id/billing — payment_records + xendit_invoices
-- OK POST /api/auth/parent/register + login (sudah ada sebelumnya)
-- OK POST /api/auth/parent/link-child (sudah ada sebelumnya)
-
-### Frontend
-- OK ParentDashboardScreen — list anak + badge level/sesi/akurasi/terakhir
-- OK ChildProgressScreen — stats + progress bar per level
-- OK ChildSessionsScreen — paginated + infinite scroll
-- OK ChildBillingScreen — status akses + riwayat manual + xendit
-- OK ParentAuthScreen — register/login + auto-link child + setParentAuth
-- OK App.jsx isParent stack (terpisah dari student + referrer + teacher)
+- OK GET /api/parent/children + progress + sessions + billing
+- OK POST /api/auth/parent/register + login + link-child
+- OK ParentDashboardScreen, ChildProgressScreen, ChildSessionsScreen, ChildBillingScreen
+- OK App.jsx isParent stack (terpisah, dengan bootstrap restore)
 - OK useStore: parentToken, parentProfile, setParentAuth, clearParentAuth
-- OK Bootstrap restore parentToken dari AsyncStorage saat app start
-- OK RoleSelectScreen: tombol "Masuk sebagai Orang Tua" → ParentAuth
 - OK api.js: parentChildren, parentChildProgress, parentChildSessions, parentChildBilling
 
-### Bug yang ditemukan & diperbaiki
-- FIXED: parentToken tidak di-restore saat app boot
-- FIXED: isParent routing — Parent screens ada di Main Stack student (harus stack terpisah)
-- FIXED: orphan key `parent: null` di useStore (bentrok dengan student.parent)
-- FIXED: `authToken` unused di ParentAuthScreen
+---
+
+## SPRINT F — TEACHER DASHBOARD (SELESAI)
+
+- OK GET /api/teacher/me + students + student/:id/progress + sessions
+- OK POST /api/auth/teacher/register + login + link-student
+- OK Migration 013: teacher_code kolom (6 char unique, auto-generated)
+- OK GET /api/auth/teacher/by-code/:code — public endpoint
+- OK POST /api/auth/student/link-teacher — murid input kode guru
+- OK TeacherAuthScreen, TeacherDashboardScreen, StudentDetailScreen
+- OK App.jsx isTeacher stack + bootstrap restore
+- OK SettingsScreen: input kode 6 char → link ke guru (live-tested kode 15CCC0)
 
 ---
 
-## SPRINT F — TEACHER DASHBOARD (BACKEND OK, FRONTEND PARTIAL)
+## SPRINT G — POLISH (G.1 + G.2 SELESAI, G.3 BELUM)
 
-### Backend
-- OK GET /api/teacher/me — profil guru + total_students
-- OK GET /api/teacher/students — list murid + snapshot akurasi
-- OK GET /api/teacher/student/:id/progress — per level + stats
-- OK GET /api/teacher/student/:id/sessions — paginated
-- OK POST /api/auth/teacher/register + login
-- OK POST /api/auth/teacher/link-student
-- OK Tabel: teachers (id, email, display_name, teacher_type, is_verified, password_hash)
-- OK Tabel: teacher_students (teacher_id, student_id, linked_at) + unique constraint
+### G.1 Selesai
+- OK GET /api/exercises/level-info/:level_id (live-tested: "Addition +1", "Multiplication Tables")
+- OK HomeScreen levelSub dinamis dari API
 
-### Frontend
-- OK TeacherAuthScreen — register (school/private) + login + finalize ke isTeacher
-- OK TeacherDashboardScreen — list murid + badge + handleLogout
-- OK StudentDetailScreen — progress + sessions tabs (222 baris)
-- OK App.jsx isTeacher stack routing
-- OK useStore: teacherToken, teacher, setTeacherAuth, clearTeacherAuth
-- OK Bootstrap restore teacherToken dari AsyncStorage
-- OK RoleSelectScreen: tombol "Portal Guru" → TeacherAuth
-- FIXED: `teacher.total_students` crash → `teacher?.total_students`
-- NO: Link-student UI di sisi murid (murid input kode guru → terhubung)
+### G.2 Selesai
+- OK Migration 013 teacher_code
+- OK GET /api/auth/teacher/by-code/:code
+- OK POST /api/auth/student/link-teacher
+- OK SettingsScreen link-guru UI (TextInput 6 char + tombol Hubungkan)
 
-### Gap yang perlu diselesaikan (Sprint G.2)
-- Teachers belum punya kolom `teacher_code` — perlu migration
-- Tidak ada UI di SettingsScreen untuk murid input kode guru
-- Tidak ada endpoint GET /api/auth/teacher/by-code/:code
-
----
-
-## SPRINT G — POLISH (SEDANG BERJALAN)
-
-### G.1 — Selesai
-- OK GET /api/exercises/level-info/:level_id — return name + description dari tabel levels
-- OK HomeScreen: levelSub dinamis dari API (bukan hardcoded "Penjumlahan Dasar")
-- OK api.js: parent methods lengkap (4 endpoints)
-
-### G.2 — Belum (Teacher link-student)
-- NO Migration: tambah kolom teacher_code ke tabel teachers
-- NO GET /api/auth/teacher/by-code/:code — cari guru by kode
-- NO SettingsScreen: input kode guru untuk murid
-- NO Notifikasi/konfirmasi setelah murid berhasil terhubung ke guru
-
-### G.3 — Belum (Nice to have)
+### G.3 Belum
 - NO Global error boundary React Native
 - NO Offline detection + retry
 - NO Push notification naik level
-- NO Xendit end-to-end test dengan test key asli
+- NO Xendit test key live test
+
+---
+
+## SPRINT H — AUDIO INFRASTRUCTURE (H.1-H.6 SELESAI)
+
+### H.1-H.3 Selesai (audit, konversi, upload R2)
+- OK Total R2: 19.886 file (~208 MB) di bucket cadas-audio
+- OK bot/speech/opus: 52 file | bot/speech/visemes: 52 JSON
+- OK speech/cache/opus: 9.771 | speech/cache/visemes: 9.771
+- OK speech/gemini/opus: 120 | speech/gemini/visemes: 120
+
+### H.4 Selesai — Backend serve R2
+- OK R2_PUBLIC_URL=https://pub-525e5eaf26164322afff13a0b9efb5f5.r2.dev (di .env, gitignored)
+- OK GET /api/tts/:id → redirect 302 ke R2 Opus (fallback lokal WAV)
+- OK GET /api/viseme/:id → redirect 302 ke R2 JSON
+- OK GET /api/bot-audio/:file → redirect 302 ke R2 Opus
+- OK Live-tested: 3/3 endpoint return 302 dengan Location R2 ✅
+
+### H.5 Selesai — api.js bersih
+- OK ttsUrl: → /api/tts/:id?type=
+- OK visemeUrl: → /api/viseme/:id?type= (sebelumnya lokal path)
+- OK botAudioUrl: → /api/bot-audio/:id (sebelumnya rusak/duplikat)
+- OK levelAudioUrl: → /audio/speech/gemini/opus/ (update ke opus)
+- OK parentChild* methods fix (sebelumnya path string rusak)
+
+### H.6 Selesai — PracticeScreen bot audio mapping
+- OK playBotAudio() helper terpisah dari playSound() exercise TTS
+- OK Welcome audio by level range (bot_welcome_l1_l3 ~ l13_l15, welcome_back)
+- OK handleCorrect: correct_01~05 acak / after_wrong / last / weak / streak 3/5/10
+- OK handleCorrect: speed feedback (kilat/cepat/pelan) 15% chance
+- OK handleWrong: wrong_01 / after_hint / 3row / many / trick / weak
+- OK Streak break detection: break_short (≥3) / break_long (≥5)
+- OK Idle: bot_idle_30s @ 30s, bot_idle_60s @ 60s, sleeping @ 120s
+- OK prevStreakRef untuk track streak break
+- OK botSoundRef terpisah dari soundRef
+
+### H.7-H.8 Belum
+- NO Domain cadasmatematika.id (tersedia di Hostinger, belum dibeli)
+- NO Custom domain R2: audio.cadasmatematika.id
 
 ---
 
 ## SPRINT D — SELESAI SEMUA
-- OK D.1: migration 012 (xendit_invoices, referrer_earnings, dll)
-- OK D.2: Xendit create-invoice + webhook + status
-- OK D.3: Auth referrer (login, me, earnings, clicks)
-- OK D.4: Admin dashboard routes
-- OK D.5: Referrer dashboard routes
-- OK D.6: Redirect token /d/:token
-- OK D.7: Frontend ReferrerStack 6 screens
+- OK D.1-D.7: migration, Xendit, admin, referrer, frontend 6 screens
 
 ---
 
 ## GIT LOG TERKINI
 
-### cadas-app-backend
-- feat(Sprint G): GET /api/exercises/level-info/:level_id
-- feat(Sprint E+F): parent + teacher dashboard routes
-- feat(Sprint D): migration 012, admin/referrer/xendit routes
+### cadas-app (frontend)
+- feat(Sprint H.6): PracticeScreen — bot reaction audio lengkap 52 file mapping
+- fix(Sprint H.5): api.js rewrite bersih
+- feat(Sprint G.2): SettingsScreen link-guru UI + HomeScreen level name dinamis
+- feat(Sprint E-G): parent dashboard, viseme, bot audio, screens
 
-### cadas-app
-- feat(Sprint H): konversi 9.771 cache + 120 gemini WAV → Opus, upload R2 lengkap (19.886 file)
-- feat(Sprint H): konversi 52 bot WAV → Opus, upload R2 cadas-audio
-- feat(Sprint H): api.js botAudioUrl + botVisemeUrl helpers
-- feat(Sprint G): api.js parent methods + HomeScreen level name dinamis
-- feat(Sprint F): BotCharacter viseme assets, HomeScreen, PracticeScreen, AskKak polish
-- feat(Sprint E+F): Parent Dashboard + Teacher Dashboard — routing, screens, store
+### cadas-app-backend
+- feat(Sprint H.4): /api/tts + /api/viseme + /api/bot-audio redirect ke R2 Opus
+- feat(Sprint G.2): teacher_code migration + by-code + student/link-teacher
+- feat(Sprint E+F): parent + teacher dashboard routes
 
 ---
 
@@ -231,57 +149,36 @@
 
 | Tabel | Status | Catatan |
 |-------|--------|---------|
-| students | OK | referred_by kolom ada |
+| students | OK | referred_by ada |
 | parents | OK | |
 | parent_children | OK | |
-| teachers | OK | is_verified ada; teacher_code BELUM ADA |
-| teacher_students | OK | linked_at kolom ada |
-| referrers | OK | Kolom baru migration 012 |
+| teachers | OK | teacher_code kolom ada (migration 013) |
+| teacher_students | OK | linked_at ada |
+| referrers | OK | migration 012 |
 | payment_records | OK | |
 | xendit_invoices | OK | |
-| referrer_earnings | OK | |
-| student_sessions | OK | level_id, correct_count, avg_time_ms, total_questions |
+| student_sessions | OK | level_id, correct_count, avg_time_ms |
 | exercises | OK | 5.446 rows level 1-15 |
-| levels | OK | 15 rows, kolom: id, name, description |
-| _migrations | OK | 001-012 semua tercatat |
-
----
-
-## INFRASTRUKTUR AUDIO (Sprint H)
-
-| Komponen | Status | Detail |
-|----------|--------|--------|
-| ffmpeg | OK | v9.0.1 via winget |
-| rclone | OK | v1.75.1, config "r2" → Cloudflare R2 |
-| R2 bucket | OK | cadas-audio, region Asia Pacific |
-| Bot opus R2 | OK | 52 file @ r2:cadas-audio/bot/speech/opus |
-| Bot viseme R2 | OK | 52 JSON @ r2:cadas-audio/bot/speech/visemes |
-| Exercise cache opus R2 | OK | 9.771 file @ r2:cadas-audio/speech/cache/opus (194 MB) |
-| Exercise cache viseme R2 | OK | 9.771 JSON @ r2:cadas-audio/speech/cache/visemes |
-| Gemini level opus R2 | OK | 120 file @ r2:cadas-audio/speech/gemini/opus (12 MB) |
-| Gemini level viseme R2 | OK | 120 JSON @ r2:cadas-audio/speech/gemini/visemes |
-| Total R2 | OK | 19.886 file, ~208 MB, free tier Cloudflare ✅ |
-| Domain audio | NO | cadasmatematika.id tersedia di Hostinger, belum dibeli |
-| Custom domain R2 | NO | audio.cadasmatematika.id — menunggu domain aktif |
-| Backend serve R2 | NO | /api/tts belum diupdate ke R2 URL |
-| Frontend api.js R2 | NO | URL audio belum pointing ke R2 |
+| levels | OK | 15 rows |
+| _migrations | OK | 001-013 tercatat |
 
 ---
 
 ## BUG STATUS
 
-| Bug | File | Status |
-|-----|------|--------|
-| D.0.1: GET /select-variant → POST | rag.js | OK Fixed |
-| double-mount /api/admin | index.js | OK Fixed Sprint D |
-| parentToken tidak di-restore | App.jsx | OK Fixed Sprint E |
-| isParent routing stack salah | App.jsx | OK Fixed Sprint E |
-| orphan parent: null di useStore | useStore.js | OK Fixed Sprint E |
-| teacher.total_students crash | TeacherDashboardScreen | OK Fixed Sprint F |
-| HomeScreen levelSub hardcoded | HomeScreen.jsx | OK Fixed Sprint G.1 |
-| api.js botAudioUrl template literal rusak | api.js | OK Fixed Sprint H |
-| placement probe concept_id null | data | !! Acceptable beta |
-| 446 viseme cache gap | speech/cache/visemes | !! Owner akan perbaiki sendiri |
+| Bug | Status |
+|-----|--------|
+| D.0.1: GET /select-variant → POST | OK Fixed |
+| double-mount /api/admin | OK Fixed |
+| parentToken tidak di-restore | OK Fixed |
+| isParent routing stack salah | OK Fixed |
+| orphan parent: null di useStore | OK Fixed |
+| teacher.total_students crash | OK Fixed |
+| HomeScreen levelSub hardcoded | OK Fixed |
+| api.js duplikat botAudio + parent path rusak | OK Fixed |
+| /api/tts serve lokal WAV bukan R2 | OK Fixed |
+| PracticeScreen bot audio tidak terpetakan | OK Fixed |
+| placement probe concept_id null | !! Acceptable beta |
 
 ---
 
@@ -289,11 +186,21 @@
 
 | # | Pertanyaan | Memengaruhi |
 |---|-----------|-------------|
-| 1 | Xendit test key sudah ada? | Sprint D.2 live test |
-| 2 | Domain cadasmatematika.id — kapan beli? | R2 custom domain, Sprint H.8 |
-| 3 | Teacher code: format apa? (6 digit angka? kode unik?) | Sprint G.2 |
-| 4 | Link murid-guru: perlu approval dari guru dulu? | Sprint G.2 |
+| 1 | Xendit test key? | Live payment test |
+| 2 | Domain cadasmatematika.id — kapan beli? | R2 custom domain |
+| 3 | Link murid-guru: perlu approval guru? | G.2 UX |
+| 4 | Push notification: Expo atau Firebase? | G.3 |
 | 5 | Embedding model production: ada-002 atau 384 dim? | Fase 15 |
-| 6 | Push notification: pakai Expo Notifications atau Firebase? | Sprint G.3 |
-| 7 | Bot reaction audio: pakai Opus dari R2 (perlu update api.js) — R2 URL belum public | Sprint H.6 |
-| 8 | R2 public URL: pakai r2.dev sementara atau tunggu domain cadasmatematika.id? | Sprint H.4 |
+
+---
+
+## NEXT SPRINT KANDIDAT
+
+| Priority | Task |
+|----------|------|
+| 🔴 High | SessionResultScreen — save session ke DB + level-up detection |
+| 🔴 High | Xendit live test dengan test key |
+| 🟡 Medium | G.3: error boundary + offline detection |
+| 🟡 Medium | Domain + R2 custom domain audio.cadasmatematika.id |
+| 🟢 Low | Push notification naik level |
+| 🟢 Low | Admin mobile view |
