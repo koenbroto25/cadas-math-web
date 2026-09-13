@@ -238,6 +238,7 @@ export default function App() {
               <>
                 <Stack.Screen name='Placement'       component={PlacementScreen} />
                 <Stack.Screen name='PlacementResult' component={PlacementResultScreen} />
+                <Stack.Screen name='ParentAuth'      component={ParentAuthScreen} />
               </>
 
             /* ── MAIN APP (student login + placement done) ───────────── */

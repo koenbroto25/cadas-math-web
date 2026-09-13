@@ -187,6 +187,7 @@ export default function PlacementResultScreen({ navigation, route }) {
 
 const s = StyleSheet.create({
   scroll:         { flex: 1, backgroundColor: C.bg },
+  botCenter:      { alignItems: 'center', marginBottom: 16 },
   inner:          { paddingHorizontal: 24, paddingBottom: 48 },
   botCenter:      { alignItems: 'center', marginBottom: 16 },
   resultCard:     { backgroundColor: C.surface, borderRadius: 24, padding: 32, alignItems: 'center', marginBottom: 24, borderWidth: 1, borderColor: '#00F0FF44' },

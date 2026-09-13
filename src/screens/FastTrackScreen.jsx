@@ -151,6 +151,98 @@ export default function FastTrackScreen() {
     setRitualDone(true);
   }
 
+  // ── Store — pakai student + token dari store, bukan AsyncStorage ──────────
+  const student       = useStore((s) => s.student);
+  const authToken     = useStore((s) => s.authToken);
+  const setBotState   = useStore((s) => s.setBotState);
+  const startSpeaking = useStore((s) => s.startSpeaking);
+  const stopSpeaking  = useStore((s) => s.stopSpeaking);
+  const visemeData    = useStore((s) => s.visemeData);
+
+  const [test,       setTest]       = useState(null);
+  const [current,    setCurrent]    = useState(0);
+  const [answers,    setAnswers]    = useState([]);
+  const [timeLeft,   setTimeLeft]   = useState(null);
+  const [showResult, setShowResult] = useState(false);
+  const [result,     setResult]     = useState(null);
+  const [ritualDone, setRitualDone] = useState(false);
+
+  const timerRef    = useRef(null);
+  const botSoundRef = useRef(null);
+  const timeLeftRef = useRef(null);  // ref untuk akses timeLeft di dalam closure submit
+  const testRef     = useRef(null);  // ref untuk akses test di dalam closure timer
+  const navTimerRef = useRef(null);  // ref untuk setTimeout navigasi setelah hasil
+  const isMountedRef = useRef(true);
+
+  // Sync ke ref agar bisa diakses di dalam interval closure
+  useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
+  useEffect(() => { testRef.current = test; }, [test]);
+
+  // Cleanup timer + audio saat unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(timerRef.current);
+      clearTimeout(navTimerRef.current);
+      botSoundRef.current?.stopAsync().catch(() => {});
+      botSoundRef.current?.unloadAsync().catch(() => {});
+      stopSpeaking();
+    };
+  }, []);
+
+  // ── playBotAudio — identik dengan PracticeScreen (H.7) ───────────────────
+  const playBotAudio = useCallback(async (id, hype = false) => {
+    try {
+      const url = api.botAudioUrl(id);
+      if (botSoundRef.current) {
+        await botSoundRef.current.stopAsync().catch(() => {});
+        await botSoundRef.current.unloadAsync().catch(() => {});
+        botSoundRef.current = null;
+      }
+      let vData = null;
+      try {
+        const vRes = await fetch(api.botVisemeUrl(id));
+        if (vRes.ok) vData = await vRes.json();
+      } catch (_) {}
+      startSpeaking(vData, hype);
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: url },
+        { shouldPlay: true },
+        (status) => {
+          if (status.didJustFinish || status.error) {
+            stopSpeaking();
+            sound.unloadAsync().catch(() => {});
+            botSoundRef.current = null;
+          }
+        }
+      );
+      botSoundRef.current = sound;
+    } catch (err) {
+      console.warn('[FastTrack:playBotAudio]', id, err?.message);
+      stopSpeaking();
+    }
+  }, [startSpeaking, stopSpeaking]);
+
+  // ── Pre-test ritual: rule → brief → countdown ────────────────────────────
+  async function runRitual() {
+    setBotState('thinking');
+    await playBotAudio('bot_pretest_rule', false);
+    if (!isMountedRef.current) return;
+    await new Promise((r) => setTimeout(r, 400));
+    if (!isMountedRef.current) return;
+    await playBotAudio('bot_pretest_brief', false);
+    if (!isMountedRef.current) return;
+    await new Promise((r) => setTimeout(r, 400));
+    if (!isMountedRef.current) return;
+    setBotState('speaking_hype');
+    await playBotAudio('bot_pretest_countdown', true);
+    if (!isMountedRef.current) return;
+    setBotState('idle');
+    setRitualDone(true);
+  }
+
+  // ── Load test dari backend ────────────────────────────────────────────────
   useEffect(() => { fetchTest(); }, []);
 
   async function fetchTest() {

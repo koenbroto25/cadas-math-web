@@ -1,4 +1,4 @@
-﻿// src/screens/PlacementScreen.jsx
+// src/screens/PlacementScreen.jsx
 // Placement test — all probes fetched at start, answered one by one, submitted together
 // API: POST /api/placement/start -> { placementId, exercises:[{id,problemText,num1,num2,operation}] }
 // API: POST /api/placement/submit -> { placedLevel, prerequisiteSignals, speedEmphasis, totalAnswers, correctAnswers }
@@ -66,7 +66,6 @@ export default function PlacementScreen({ navigation, route }) {
   async function playBotAudio(id, hype = false) {
     try {
       if (botSoundRef.current) { await botSoundRef.current.stopAsync(); botSoundRef.current = null; }
-      const { Audio } = require('expo-av');
       const { sound } = await Audio.Sound.createAsync({ uri: api.botAudioUrl(id) }, { shouldPlay: true });
       botSoundRef.current = sound;
       const vRes = await fetch(api.botVisemeUrl(id)).catch(() => null);

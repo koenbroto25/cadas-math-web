@@ -1,4 +1,4 @@
-﻿// src/services/api.js
+// src/services/api.js
 // Semua komunikasi ke backend Express (cadas-app-backend)
 //
 // Override tanpa ubah kode:
@@ -107,8 +107,9 @@ export const api = {
     `${_base}/audio/speech/gemini/opus/L${level}_${segment}.opus`,
 
   // Bot reaction audio — Sprint H.4 (backend redirect ke R2 Opus)
+  // Sprint H.7 — botVisemeUrl: endpoint dedicated /api/bot-viseme/ → R2 /bot/speech/visemes/{id}.json
   botAudioUrl:  (id) => `${_base}/api/bot-audio/${id}`,
-  botVisemeUrl: (id) => `${_base}/api/viseme/bot_${id}?type=hint`,
+  botVisemeUrl: (id) => `${_base}/api/bot-viseme/${id}`,
 
   // Referrer
   referrerLogin:      (data)        =>
