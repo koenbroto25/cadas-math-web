@@ -98,6 +98,7 @@ export default function SessionResultScreen({ navigation, route }) {
     const isHype = levelUp || pct >= 75;
 
     if (levelUp) {
+      // ── Bot level-up audio — pilih berdasarkan konteks ──────────────────
       store.setBotState('level_up');
       const target = TARGET_MS[level] ?? 10000;
       if (sessionCount <= 4)       audioId = 'bot_levelup_few';
