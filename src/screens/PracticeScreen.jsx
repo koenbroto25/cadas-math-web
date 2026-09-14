@@ -1,7 +1,6 @@
 ﻿// src/screens/PracticeScreen.jsx
 // Layar latihan utama Ã¢â‚¬” soal di WebView, bot overlay di atas
 // Sprint H.6: bot reaction audio lengkap (52 file mapping)
-// Sprint I: tambah levelAccess ke SessionResult navigate params
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
@@ -359,14 +358,9 @@ export default function PracticeScreen({ navigation }) {
           newLevel:       newLevelVal,
           sessionCount,
           avgTimeMs:      sessionResults.length > 0
-            ? Math.round(
-                sessionResults.filter(r => r.timeMs > 0)
-                  .reduce((a, r) => a + r.timeMs, 0) /
-                sessionResults.filter(r => r.timeMs > 0).length
-              )
+            ? Math.round(sessionResults.filter(r => r.timeMs > 0).reduce((a,r) => a + r.timeMs, 0) / sessionResults.filter(r => r.timeMs > 0).length)
             : 0,
           drillSuggested,
-          levelAccess:    levelAccessForNew,
         });
       }
     }, newStreak >= 5 ? 1500 : 800);
@@ -467,18 +461,20 @@ export default function PracticeScreen({ navigation }) {
         try { botSoundRef.current.pause(); } catch (_){}
       }
       // Sprint H.7 — fetch viseme dari R2 via /api/bot-viseme/:id
+      // Jika gagal (network/404), fallback ke SPEAKING_LOOP di BotCharacter (vData=null)
       let vData = null;
       try {
         const vRes = await fetch(api.botVisemeUrl(id));
         if (vRes.ok) vData = await vRes.json();
       } catch (_) {}
+      // Aktifkan lip-sync di BotCharacter — hype=true → speaking_hype (ekspresi semangat)
       startSpeaking(vData, hype);
       botSpeakingRef.current?.(true);   // ducking BGM ke 20% selama Kak Cadas bicara
       botSoundRef.current.replace({ uri: url });
       botSoundRef.current.play();
     } catch (err) {
       console.warn('[playBotAudio]', id, err?.message);
-      stopSpeaking();
+      stopSpeaking();               // pastikan tidak stuck di speaking state
     }
   }
 
@@ -557,7 +553,7 @@ export default function PracticeScreen({ navigation }) {
 
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{'←'}</Text>
+          <Text style={styles.back}>{'Ã¢â€ Â'}</Text>
         </TouchableOpacity>
         <Text style={styles.levelLabel}>Level {currentLevel}</Text>
         <Text style={styles.progress}>{currentIndex + 1}/{exercises.length}</Text>
@@ -579,10 +575,6 @@ export default function PracticeScreen({ navigation }) {
           onTouchStart={resetIdleTimer}
           javaScriptEnabled
           domStorageEnabled
-          cacheEnabled
-          setSupportMultipleWindows={false}
-          allowsInlineMediaPlayback
-          mediaPlaybackRequiresUserAction={false}
           scrollEnabled={false}
           showsVerticalScrollIndicator={false}
           backgroundColor={COLORS.bg}

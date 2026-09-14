@@ -55,11 +55,11 @@ import ChildProgressScreen   from './src/screens/ChildProgressScreen';
 import ChildSessionsScreen   from './src/screens/ChildSessionsScreen';
 import ChildBillingScreen    from './src/screens/ChildBillingScreen';
 
-// Screens -- Teacher Dashboard (Sprint F)
+// Screens -- Teacher Dashboard
 import TeacherDashboardScreen from './src/screens/TeacherDashboardScreen';
 import StudentDetailScreen    from './src/screens/StudentDetailScreen';
 
-// Screens -- Referrer (Sprint D.7)
+// Screens -- Referrer
 import ReferrerLoginScreen          from './src/screens/ReferrerLoginScreen';
 import ReferrerDashboardScreen      from './src/screens/ReferrerDashboardScreen';
 import ReferrerEarningsScreen       from './src/screens/ReferrerEarningsScreen';
@@ -67,12 +67,13 @@ import ReferrerClicksScreen         from './src/screens/ReferrerClicksScreen';
 import ReferrerBankScreen           from './src/screens/ReferrerBankScreen';
 import ReferrerChangePasswordScreen from './src/screens/ReferrerChangePasswordScreen';
 
+// Screens -- Demo Mode
+import DemoHomeScreen from './src/screens/DemoHomeScreen';
+
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const COLORS = {
-  bg: '#0A0A12', surface: '#13131F', cyan: '#00F0FF', muted: '#444455',
-};
+const COLORS = { bg: '#0A0A12', surface: '#13131F', cyan: '#00F0FF', muted: '#444455' };
 
 function TabNavigator() {
   return (
