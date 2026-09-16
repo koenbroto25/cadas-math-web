@@ -1,0 +1,75 @@
+﻿# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Documents â€” semua markdown di-ignore (backup: r2-backup-*.zip di root workspace)
+*.md
+!LICENSE
+
+# Backup arsip workspace
+r2-backup-*.zip
+_backup_stage/
+_zip_check/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# BOM/generated copies
+*.bak
+
+# Bot audio — served from R2, tidak perlu di-track git
+assets/bot/speech/
+
+# Bot viseme JSON — served from R2
+# assets/bot/viseme/ (SVG tetap di-track, JSON di R2)
+
+# Bot ekspresi SVG — TETAP DI-TRACK (dipakai BotCharacter.jsx lokal)
+# assets/bot/expr/
+
+
+.env.local
+.env.*
+*.log
+expo-install.log
+npm-install.log
+
+# Local configuration and workstation artifacts
+.env
+.railway/
+*.lnk
+

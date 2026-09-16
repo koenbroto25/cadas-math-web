@@ -1,0 +1,427 @@
+// src/screens/HomeScreen.jsx — Redesign v3
+// Tambahan: logo Cadas Matematika, bot welcome audio+viseme, layout lebih dramatis
+
+import React, { useEffect, useRef, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity,
+  ScrollView, StatusBar, Animated,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Audio } from 'expo-av';
+import { useStore } from '../store/useStore';
+import { api, API_BASE } from '../services/api';
+import BotCharacter from '../components/BotCharacter';
+
+// ── Palet warna ────────────────────────────────────────────────────────────────
+const C = {
+  bg:      '#08080F',
+  surface: '#111120',
+  card:    '#16162A',
+  cyan:    '#00F0FF',
+  magenta: '#FF2EC4',
+  lime:    '#B6FF00',
+  gold:    '#FFD700',
+  orange:  '#FF8C00',
+  text:    '#FFFFFF',
+  muted:   '#7A7A99',
+  border:  '#1E1E35',
+};
+
+// ── Badge akses ────────────────────────────────────────────────────────────────
+const ACCESS_BADGE = {
+  premium:         { label: '✨ Premium',     color: C.gold },
+  basic:           { label: '📘 Basic',       color: C.cyan },
+  trial:           { label: '🔓 Trial',       color: C.muted },
+  trial_exhausted: { label: '🔒 Trial Habis', color: C.magenta },
+  locked:          { label: '🔒 Terkunci',    color: C.magenta },
+};
+
+// ── Greeting dinamis berdasarkan jam ──────────────────────────────────────────
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 11) return 'Selamat pagi';
+  if (h < 15) return 'Selamat siang';
+  if (h < 18) return 'Selamat sore';
+  return 'Selamat malam';
+}
+
+// ── Welcome audio berdasarkan level ───────────────────────────────────────────
+function welcomeAudioId(level, isBack) {
+  if (isBack) return 'bot_welcome_back';
+  if (level <= 3)  return 'bot_welcome_l1_l3';
+  if (level <= 7)  return 'bot_welcome_l4_l7';
+  if (level <= 12) return 'bot_welcome_l8_l12';
+  return 'bot_welcome_l13_l15';
+}
+
+// ── Komponen StatPill ─────────────────────────────────────────────────────────
+function StatPill({ icon, value, label, color, glow }) {
+  return (
+    <View style={[pill.wrap, glow && { borderColor: color + '55', shadowColor: color }]}>
+      <Text style={pill.icon}>{icon}</Text>
+      <Text style={[pill.value, { color: color || C.cyan }]}>{value}</Text>
+      <Text style={pill.label}>{label}</Text>
+    </View>
+  );
+}
+const pill = StyleSheet.create({
+  wrap:  { flex: 1, alignItems: 'center', paddingVertical: 16,
+           backgroundColor: C.surface, borderRadius: 18,
+           borderWidth: 1, borderColor: C.border,
+           shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  icon:  { fontSize: 20, marginBottom: 4 },
+  value: { fontSize: 19, fontWeight: '800', marginBottom: 2 },
+  label: { color: C.muted, fontSize: 10, fontWeight: '600',
+           letterSpacing: 0.5, textTransform: 'uppercase' },
+});
+
+// ── Komponen Logo ─────────────────────────────────────────────────────────────
+function CadasLogo() {
+  return (
+    <View style={logo.wrap}>
+      {/* CADAS — huruf bold dengan aksen warna */}
+      <View style={logo.row}>
+        <Text style={logo.C}>C</Text>
+        <Text style={logo.rest}>ADAS</Text>
+      </View>
+      {/* MATEMATIKA — lebih kecil, tracking lebar */}
+      <Text style={logo.sub}>MATEMATIKA</Text>
+      {/* Tagline */}
+      <Text style={logo.tagline}>Cara Cerdas Matematika ⚡</Text>
+    </View>
+  );
+}
+const logo = StyleSheet.create({
+  wrap:    { alignItems: 'center', marginBottom: 8 },
+  row:     { flexDirection: 'row', alignItems: 'baseline' },
+  C:       { fontSize: 38, fontWeight: '900', color: C.cyan,
+             textShadowColor: C.cyan, textShadowOffset: { width: 0, height: 0 },
+             textShadowRadius: 12 },
+  rest:    { fontSize: 38, fontWeight: '900', color: C.text, letterSpacing: 2 },
+  sub:     { fontSize: 14, fontWeight: '700', color: C.muted,
+             letterSpacing: 6, marginTop: -4 },
+  tagline: { fontSize: 11, color: C.cyan + '99', marginTop: 6,
+             letterSpacing: 1, fontWeight: '500' },
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+export default function HomeScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+  const {
+    student: storeStudent,
+    currentLevel,
+    streak, xp,
+    getConfidenceScore,
+    levelAccess,
+    setLevelAccess,
+    startSpeaking,
+    stopSpeaking,
+    visemeData,
+    setBotState,
+  } = useStore();
+
+  const confidence     = getConfidenceScore();
+  const fastTrackReady = confidence > 0.85;
+  const pct            = Math.round(confidence * 100);
+  const isLocked       = levelAccess === 'locked' || levelAccess === 'trial_exhausted';
+  const accessBadge    = ACCESS_BADGE[levelAccess] || ACCESS_BADGE.trial;
+  const displayName    = storeStudent?.display_name || storeStudent?.name || 'Cadas';
+
+  const [levelName,   setLevelName]   = React.useState('');
+  const [welcomed,    setWelcomed]    = React.useState(false);
+  const botSoundRef   = useRef(null);
+  const pulseAnim     = useRef(new Animated.Value(1)).current;
+  const fadeAnim      = useRef(new Animated.Value(0)).current;
+
+  // ── Fetch level info ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!currentLevel) return;
+    const url = storeStudent?.id
+      ? `${API_BASE}/api/exercises/level-info/${currentLevel}?student_id=${storeStudent.id}`
+      : `${API_BASE}/api/exercises/level-info/${currentLevel}`;
+    fetch(url)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        if (d.name) setLevelName(d.name);
+        if (d.level_access) setLevelAccess(d.level_access);
+      })
+      .catch(() => {});
+  }, [currentLevel, storeStudent?.id]);
+
+  // ── Fade in saat screen mount ──────────────────────────────────────────────
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1, duration: 600, useNativeDriver: true,
+    }).start();
+  }, []);
+
+  // ── Pulse animasi tombol start ─────────────────────────────────────────────
+  useEffect(() => {
+    if (isLocked) return;
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.03, duration: 1200, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.0,  duration: 1200, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [isLocked]);
+
+  // ── Bot welcome audio + viseme ─────────────────────────────────────────────
+  const playWelcome = useCallback(async () => {
+    if (welcomed) return;
+    setWelcomed(true);
+    try {
+      const id  = welcomeAudioId(currentLevel, false);
+      const url = api.botAudioUrl(id);
+      // Fetch viseme
+      let vData = null;
+      try {
+        const vRes = await fetch(api.botVisemeUrl(id));
+        if (vRes.ok) vData = await vRes.json();
+      } catch (_) {}
+      setBotState('welcome_back');
+      startSpeaking(vData, false);
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: url },
+        { shouldPlay: true },
+        (status) => {
+          if (status.didJustFinish || status.error) {
+            stopSpeaking();
+            setBotState('idle');
+            sound.unloadAsync().catch(() => {});
+            botSoundRef.current = null;
+          }
+        }
+      );
+      botSoundRef.current = sound;
+    } catch (err) {
+      console.warn('[HomeScreen:playWelcome]', err?.message);
+      stopSpeaking();
+      setBotState('idle');
+    }
+  }, [welcomed, currentLevel]);
+
+  useEffect(() => {
+    // Delay sedikit agar screen render dulu
+    const t = setTimeout(playWelcome, 800);
+    return () => {
+      clearTimeout(t);
+      botSoundRef.current?.stopAsync().catch(() => {});
+      botSoundRef.current?.unloadAsync().catch(() => {});
+      stopSpeaking();
+    };
+  }, []);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  return (
+    <Animated.ScrollView
+      style={[s.container, { opacity: fadeAnim }]}
+      contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}>
+
+      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+
+      {/* ── LOGO ─────────────────────────────────────────────────────────── */}
+      <CadasLogo />
+
+      {/* ── HERO: Bot + Greeting ─────────────────────────────────────────── */}
+      <LinearGradient
+        colors={['#00F0FF0A', '#FF2EC408', '#08080F']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={s.heroCard}>
+
+        <View style={s.heroRow}>
+          {/* Bot dengan viseme aktif */}
+          <View style={s.botWrap}>
+            <BotCharacter size={110} visemeData={visemeData} showCompanion />
+          </View>
+          {/* Greeting teks */}
+          <View style={s.heroText}>
+            <Text style={s.greeting}>{getGreeting()},</Text>
+            <Text style={s.name}>{displayName}!</Text>
+            <View style={[s.badge, { borderColor: accessBadge.color + '77' }]}>
+              <Text style={[s.badgeText, { color: accessBadge.color }]}>
+                {accessBadge.label}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Level info */}
+        <View style={s.levelRow}>
+          <View>
+            <Text style={s.levelLabel}>LEVEL SEKARANG</Text>
+            <Text style={s.levelNum}>{currentLevel}</Text>
+          </View>
+          <View style={{ flex: 1, marginLeft: 16 }}>
+            <Text style={s.levelName}>{levelName || '...'}</Text>
+            {/* Progress bar */}
+            <View style={s.progressTrack}>
+              <LinearGradient
+                colors={pct >= 85 ? [C.lime, '#7FFF00'] : [C.cyan, '#0090FF']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={[s.progressFill, { width: `${Math.max(4, pct)}%` }]}
+              />
+            </View>
+            <Text style={s.progressLabel}>
+              {pct}% confidence{pct >= 85 ? ' ⚡' : ''}
+            </Text>
+          </View>
+        </View>
+      </LinearGradient>
+
+      {/* ── STAT PILLS ───────────────────────────────────────────────────── */}
+      <View style={s.statRow}>
+        <StatPill icon="🔥" value={streak || 0} label="Hari Streak"
+          color={C.magenta} glow={streak >= 3} />
+        <View style={{ width: 10 }} />
+        <StatPill icon="⚡" value={`${xp}`}   label="XP Hari Ini"
+          color={C.lime} glow={xp > 0} />
+        <View style={{ width: 10 }} />
+        <StatPill icon="🎯" value={`${pct}%`} label="Confidence"
+          color={pct >= 85 ? C.lime : C.cyan} glow={pct >= 85} />
+      </View>
+
+      {/* ── BANNER UPGRADE ───────────────────────────────────────────────── */}
+      {isLocked && (
+        <TouchableOpacity
+          style={s.upgradeBanner}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('UpgradePaywall', { level: currentLevel })}>
+          <LinearGradient
+            colors={['#FF2EC422', '#FF8C0011']}
+            style={s.upgradeBannerInner}>
+            <Text style={s.upgradeTitle}>🔒 Akses Trial Habis</Text>
+            <Text style={s.upgradeDesc}>
+              Upgrade untuk lanjut latihan Level {currentLevel}
+            </Text>
+            <View style={s.upgradeBtn}>
+              <Text style={s.upgradeBtnText}>Lihat Paket →</Text>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
+
+      {/* ── BANNER FAST TRACK ────────────────────────────────────────────── */}
+      {fastTrackReady && !isLocked && (
+        <TouchableOpacity
+          style={s.ftBanner}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('FastTrack', { level: currentLevel })}>
+          <View style={s.ftLeft}>
+            <Text style={s.ftTitle}>⚡ Fast Track!</Text>
+            <Text style={s.ftDesc}>Siap naik ke Level {currentLevel + 1}?</Text>
+          </View>
+          <Text style={s.ftArrow}>→</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* ── TOMBOL MULAI ─────────────────────────────────────────────────── */}
+      <Animated.View style={{ transform: [{ scale: isLocked ? 1 : pulseAnim }] }}>
+        <TouchableOpacity
+          style={[s.startBtn, isLocked && s.startBtnLocked]}
+          activeOpacity={0.88}
+          onPress={() => {
+            if (isLocked) navigation.navigate('UpgradePaywall', { level: currentLevel });
+            else navigation.navigate('Practice');
+          }}>
+          {isLocked ? (
+            <Text style={[s.startBtnText, { color: C.muted }]}>
+              🔒 UPGRADE UNTUK LANJUT
+            </Text>
+          ) : (
+            <LinearGradient
+              colors={[C.cyan, '#0090FF']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={s.startBtnGradient}>
+              <Text style={s.startBtnText}>MULAI LATIHAN 🚀</Text>
+            </LinearGradient>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* ── SHORTCUT TANYA KAK ───────────────────────────────────────────── */}
+      {levelAccess === 'premium' && (
+        <TouchableOpacity
+          style={s.askBtn}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('TanyaKak')}>
+          <Text style={s.askText}>💬  Tanya Kak Cadas — AI Tutor</Text>
+        </TouchableOpacity>
+      )}
+
+    </Animated.ScrollView>
+  );
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  container:      { flex: 1, backgroundColor: C.bg, paddingHorizontal: 18 },
+
+  // Hero card
+  heroCard:       { borderRadius: 28, padding: 20, marginBottom: 14,
+                    borderWidth: 1, borderColor: C.cyan + '22' },
+  heroRow:        { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  botWrap:        { marginRight: 16 },
+  heroText:       { flex: 1 },
+  greeting:       { color: C.muted, fontSize: 14, fontWeight: '500' },
+  name:           { color: C.text, fontSize: 24, fontWeight: '900',
+                    marginTop: 2, marginBottom: 10 },
+  badge:          { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 20,
+                    paddingHorizontal: 12, paddingVertical: 4 },
+  badgeText:      { fontSize: 12, fontWeight: '700' },
+
+  // Level row
+  levelRow:       { flexDirection: 'row', alignItems: 'center' },
+  levelLabel:     { color: C.muted, fontSize: 9, fontWeight: '700',
+                    letterSpacing: 2, marginBottom: 2 },
+  levelNum:       { color: C.cyan, fontSize: 44, fontWeight: '900', lineHeight: 48,
+                    textShadowColor: C.cyan, textShadowOffset: { width: 0, height: 0 },
+                    textShadowRadius: 10 },
+  levelName:      { color: C.text, fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  progressTrack:  { height: 6, backgroundColor: C.border, borderRadius: 3,
+                    overflow: 'hidden', marginBottom: 6 },
+  progressFill:   { height: '100%', borderRadius: 3 },
+  progressLabel:  { color: C.muted, fontSize: 11 },
+
+  // Stats
+  statRow:        { flexDirection: 'row', marginBottom: 14 },
+
+  // Upgrade banner
+  upgradeBanner:  { borderRadius: 20, marginBottom: 14, overflow: 'hidden',
+                    borderWidth: 1.5, borderColor: C.magenta + '55' },
+  upgradeBannerInner: { padding: 20 },
+  upgradeTitle:   { color: C.magenta, fontWeight: '800', fontSize: 15, marginBottom: 4 },
+  upgradeDesc:    { color: C.muted, fontSize: 13, marginBottom: 14 },
+  upgradeBtn:     { backgroundColor: C.magenta, borderRadius: 12,
+                    paddingVertical: 10, alignItems: 'center' },
+  upgradeBtnText: { color: C.bg, fontWeight: '800', fontSize: 13 },
+
+  // Fast track banner
+  ftBanner:       { backgroundColor: C.lime + '12', borderWidth: 1.5,
+                    borderColor: C.lime + '55', borderRadius: 20,
+                    padding: 18, marginBottom: 14,
+                    flexDirection: 'row', alignItems: 'center',
+                    justifyContent: 'space-between' },
+  ftLeft:         { flex: 1 },
+  ftTitle:        { color: C.lime, fontWeight: '800', fontSize: 15 },
+  ftDesc:         { color: C.muted, fontSize: 12, marginTop: 2 },
+  ftArrow:        { color: C.lime, fontSize: 22, fontWeight: '900' },
+
+  // Start button
+  startBtn:       { borderRadius: 22, marginBottom: 12, overflow: 'hidden',
+                    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+  startBtnLocked: { opacity: 0.6 },
+  startBtnGradient:{ paddingVertical: 22, alignItems: 'center' },
+  startBtnText:   { color: C.bg, fontSize: 17, fontWeight: '900', letterSpacing: 1.5 },
+
+  // Ask Kak
+  askBtn:         { backgroundColor: C.surface, borderRadius: 18,
+                    paddingVertical: 16, alignItems: 'center',
+                    borderWidth: 1, borderColor: C.cyan + '33' },
+  askText:        { color: C.cyan, fontSize: 14, fontWeight: '700' },
+});

@@ -1,0 +1,32 @@
+{
+  "name": "CADAS Matematika",
+  "short_name": "CADAS",
+  "description": "Belajar matematika cepat dengan voice bot CADAS",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#E6F4FE",
+  "background_color": "#E6F4FE",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "/assets/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

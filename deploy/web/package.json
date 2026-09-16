@@ -1,0 +1,13 @@
+{
+  "name": "cadas-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static web build (PWA) untuk CADAS App — disajikan oleh server.js dependency-free",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
