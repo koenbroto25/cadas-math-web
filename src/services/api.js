@@ -7,7 +7,8 @@
 // Untuk device fisik di WiFi yang sama, isi EXPO_PUBLIC_API_URL dgn IP LAN.
 
 const _base = process.env.EXPO_PUBLIC_API_URL
-  || (__DEV__ ? 'http://10.0.2.2:3000' : 'https://api.cadasmatematika.id');
+  || (typeof window !== 'undefined' ? window.location.origin
+    : (__DEV__ ? 'http://10.0.2.2:3000' : 'https://cadasmatematika.web.id'));
 
 export const API_BASE = _base;
 export const BASE_URL = _base;
