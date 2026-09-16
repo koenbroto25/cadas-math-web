@@ -1,4 +1,4 @@
-// src/screens/PlacementScreen.jsx
+﻿// src/screens/PlacementScreen.jsx
 // Placement test — all probes fetched at start, answered one by one, submitted together
 // API: POST /api/placement/start -> { placementId, exercises:[{id,problemText,num1,num2,operation}] }
 // API: POST /api/placement/submit -> { placedLevel, prerequisiteSignals, speedEmphasis, totalAnswers, correctAnswers }
@@ -60,23 +60,6 @@ export default function PlacementScreen({ navigation, route }) {
       clearTimeout(focusTimerRef.current);
     };
   }, [phase, idx]);
-
-
-  // ── Bot pretest audio (Sprint H.7) ─────────────────────────────────────────
-  async function playBotAudio(id, hype = false) {
-    try {
-      if (botSoundRef.current) { await botSoundRef.current.stopAsync(); botSoundRef.current = null; }
-      const { sound } = await Audio.Sound.createAsync({ uri: api.botAudioUrl(id) }, { shouldPlay: true });
-      botSoundRef.current = sound;
-      const vRes = await fetch(api.botVisemeUrl(id)).catch(() => null);
-      const vData = vRes?.ok ? await vRes.json() : null;
-      setBotState(hype ? 'speaking_hype' : 'speaking_calm');
-      if (vData) startSpeaking(vData, hype);
-      sound.setOnPlaybackStatusUpdate((st) => {
-        if (st.didJustFinish) { stopSpeaking(); setBotState('idle'); }
-      });
-    } catch (err) { console.warn('[Placement:playBotAudio]', id, err?.message); }
-  }
 
   async function startPlacement() {
     // FIX: guard eksplisit sebelum hit API — cegah 400 karena studentId undefined

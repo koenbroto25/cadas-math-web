@@ -167,64 +167,68 @@ export default function FastTrackScreen() {
   const [result,     setResult]     = useState(null);
   const [ritualDone, setRitualDone] = useState(false);
 
-  const timerRef    = useRef(null);
-  const botSoundRef = useRef(null);
-  const timeLeftRef = useRef(null);  // ref untuk akses timeLeft di dalam closure submit
-  const testRef     = useRef(null);  // ref untuk akses test di dalam closure timer
-  const navTimerRef = useRef(null);  // ref untuk setTimeout navigasi setelah hasil
+  const timerRef     = useRef(null);
+  const timeLeftRef  = useRef(null);
+  const testRef      = useRef(null);
+  const navTimerRef  = useRef(null);
   const isMountedRef = useRef(true);
+  const cancelledRef = useRef(false);
 
-  // Sync ke ref agar bisa diakses di dalam interval closure
+  // expo-audio: single player instance
+  const player = useAudioPlayer(null);
+
   useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
-  useEffect(() => { testRef.current = test; }, [test]);
+  useEffect(() => { testRef.current = test; },       [test]);
 
-  // Cleanup timer + audio saat unmount
+  // Cleanup saat unmount
   useEffect(() => {
     isMountedRef.current = true;
+    cancelledRef.current = false;
     return () => {
       isMountedRef.current = false;
+      cancelledRef.current = true;
       clearInterval(timerRef.current);
       clearTimeout(navTimerRef.current);
-      botSoundRef.current?.stopAsync().catch(() => {});
-      botSoundRef.current?.unloadAsync().catch(() => {});
+      try { player.pause(); } catch (_) {}
       stopSpeaking();
     };
   }, []);
 
-  // ── playBotAudio — identik dengan PracticeScreen (H.7) ───────────────────
+  // playBotAudio — pakai expo-audio
   const playBotAudio = useCallback(async (id, hype = false) => {
     try {
       const url = api.botAudioUrl(id);
-      if (botSoundRef.current) {
-        await botSoundRef.current.stopAsync().catch(() => {});
-        await botSoundRef.current.unloadAsync().catch(() => {});
-        botSoundRef.current = null;
-      }
+
       let vData = null;
       try {
         const vRes = await fetch(api.botVisemeUrl(id));
         if (vRes.ok) vData = await vRes.json();
       } catch (_) {}
+
       startSpeaking(vData, hype);
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: url },
-        { shouldPlay: true },
-        (status) => {
-          if (status.didJustFinish || status.error) {
-            stopSpeaking();
-            sound.unloadAsync().catch(() => {});
-            botSoundRef.current = null;
+
+      // expo-audio: replace source dan play
+      player.replace({ uri: url });
+      player.play();
+
+      // Tunggu selesai dengan polling
+      await new Promise((resolve) => {
+        const check = setInterval(() => {
+          if (cancelledRef.current || !player.playing) {
+            clearInterval(check);
+            resolve();
           }
-        }
-      );
-      botSoundRef.current = sound;
+        }, 200);
+      });
+
+      if (!cancelledRef.current) stopSpeaking();
     } catch (err) {
       console.warn('[FastTrack:playBotAudio]', id, err?.message);
       stopSpeaking();
     }
-  }, [startSpeaking, stopSpeaking]);
+  }, [startSpeaking, stopSpeaking, player]);
 
-  // ── Pre-test ritual: rule → brief → countdown ────────────────────────────
+  // Pre-test ritual: rule → brief → countdown
   async function runRitual() {
     setBotState('thinking');
     await playBotAudio('bot_pretest_rule', false);
@@ -242,7 +246,6 @@ export default function FastTrackScreen() {
     setRitualDone(true);
   }
 
-  // ── Load test dari backend ────────────────────────────────────────────────
   useEffect(() => { fetchTest(); }, []);
 
   async function fetchTest() {

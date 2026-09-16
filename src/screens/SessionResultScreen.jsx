@@ -158,7 +158,6 @@ export default function SessionResultScreen({ navigation, route }) {
         )}
       </View>
 
-      {/* Stats */}
       <View style={s.statsRow}>
         <View style={s.statBox}>
           <Text style={s.statNum}>{pct}%</Text>
