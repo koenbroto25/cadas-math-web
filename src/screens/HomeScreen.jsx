@@ -1,6 +1,6 @@
 // src/screens/HomeScreen.jsx — Redesign v3 (glow logo)
 // Fix: duplikat konten dihapus, bot welcome audio dipulihkan
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, StatusBar,
@@ -117,7 +117,9 @@ export default function HomeScreen({ navigation }) {
   const [levelName, setLevelName] = useState('');
   const [welcomeUrl, setWelcomeUrl] = useState(null);
   const [visemeData, setVisemeData] = useState(null);
+  const [visemeReady, setVisemeReady] = useState(false);
   const didPlayRef = useRef(false);
+  const playedRef = useRef(false);
 
   const confidence     = getConfidenceScore();
   const fastTrackReady = confidence > 0.85;
@@ -147,44 +149,55 @@ export default function HomeScreen({ navigation }) {
   }, [currentLevel, storeStudent?.id]);
 
   // ── Fetch & play bot welcome audio ────────────────────────────────────────
+  // Key welcome bergantung level — sesuai aset bot speech yang tersedia:
+  //   bot_welcome_l1_l3 | l4_l7 | l8_l12 | l13_l15
+  const welcomeKey = useMemo(() => {
+    if (!currentLevel) return null;
+    if (currentLevel <= 3)  return 'bot_welcome_l1_l3';
+    if (currentLevel <= 7)  return 'bot_welcome_l4_l7';
+    if (currentLevel <= 12) return 'bot_welcome_l8_l12';
+    return 'bot_welcome_l13_l15';
+  }, [currentLevel]);
+
   useEffect(() => {
-    if (didPlayRef.current) return;
+    if (!welcomeKey || didPlayRef.current) return;
     didPlayRef.current = true;
 
-    const audioKey = 'bot_home_welcome_01';
-
-    // 1. Fetch URL Audio (untuk player)
-    fetch(`${API_BASE}/api/bot-audio/${audioKey}`, { redirect: 'follow' })
+    // 1. URL Audio (untuk player)
+    fetch(`${API_BASE}/api/bot-audio/${welcomeKey}`, { redirect: 'follow' })
       .then(r => {
         if (r.ok || r.redirected) setWelcomeUrl(r.url);
       })
       .catch(err => console.warn('[HomeAudio] url error:', err));
 
-    // 2. Fetch Konten Viseme (JSON)
-    fetch(`${API_BASE}/api/bot-viseme/${audioKey}`)
+    // 2. Konten Viseme (JSON) — siapkan sebelum play agar tidak restart audio
+    fetch(`${API_BASE}/api/bot-viseme/${welcomeKey}`)
       .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data) setVisemeData(data);
-      })
-      .catch(err => console.warn('[HomeViseme] fetch error:', err));
-  }, []);
+      .then(data => { if (data) setVisemeData(data); })
+      .catch(err => console.warn('[HomeViseme] fetch error:', err))
+      .finally(() => setVisemeReady(true));
+  }, [welcomeKey]);
 
   // ── Trigger Play & Lip-sync ───────────────────────────────────────────────
+  // Gate: hanya play SEKALI setelah audio URL dan viseme siap.
+  // visemeData TIDAK di deps — mencegah restart audio saat viseme datang belakangan.
   useEffect(() => {
-    if (welcomeUrl && player) {
-      player.replace({ uri: welcomeUrl });
-      player.play();
-      startSpeaking(visemeData);
+    if (!welcomeUrl || !visemeReady || playedRef.current || !player) return;
+    playedRef.current = true;
 
-      const sub = player.addListener(({ didJustFinish }) => {
-        if (didJustFinish) {
-          stopSpeaking();
-          sub.remove();
-        }
-      });
-      return () => sub.remove();
-    }
-  }, [welcomeUrl, player, visemeData]);
+    player.replace({ uri: welcomeUrl });
+    player.play();
+    startSpeaking(visemeData);
+
+    const sub = player.addListener((status) => {
+      if (status?.didJustFinish || status?.error) {
+        stopSpeaking();
+        sub.remove();
+      }
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [welcomeUrl, visemeReady, player]);
 
   // Cleanup saat unmount/pindah
   useEffect(() => {
@@ -192,6 +205,7 @@ export default function HomeScreen({ navigation }) {
       player?.pause();
       stopSpeaking();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [player]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
