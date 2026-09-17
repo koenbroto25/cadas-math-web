@@ -3,16 +3,17 @@
  * SVG dari kak_cadas_rive_package_v2, animasi via Animated API (tanpa Rive).
  * Gamification: companion growth, level-up celebration, welcome-back.
  *
- * Sprint G.2 fix: VISEME map final v2 — set A-H+X uppercase, path case-safe
- * dengan alias lengkap untuk semua kode Rhubarb (A–H+X).
+ * Sprint G.2 fix v3 — path disesuaikan persis dengan nama file di disk:
+ *   viseme/a.svg, b.svg, c.svg, d.svg, e.svg, f.svg, G.svg, H.svg, x.svg
  */
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Animated, StyleSheet, Image, View, Text } from 'react-native';
 import { useStore } from '../store/useStore';
 
-// â”€â”€ Local SVG assets (copied from kak_cadas_rive_package_v2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const BODY_BASE  = require('../assets/bot/body/body_base.svg');
+// ── Local SVG assets ──────────────────────────────────────────────────────────
+const BODY_BASE = require('../assets/bot/body/body_base.svg');
+
 const EXPR = {
   idle:         require('../assets/bot/expr/idle.svg'),
   listening:    require('../assets/bot/expr/listening.svg'),
@@ -22,37 +23,40 @@ const EXPR = {
   disappointed: require('../assets/bot/expr/disappointed.svg'),
 };
 
-// â”€â”€ Viseme SVG — set baru (a,b,c,d,e,x) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Viseme SVG — path PERSIS sesuai nama file di disk ────────────────────────
+// File di disk: a.svg b.svg c.svg d.svg e.svg f.svg G.svg H.svg x.svg
 const V = {
-  A: require('../assets/bot/viseme/A.svg'),  // M/B/P — bibir tutup
-  B: require('../assets/bot/viseme/B.svg'),  // I/E — meregang
-  C: require('../assets/bot/viseme/C.svg'),  // Schwa — netral rileks
-  D: require('../assets/bot/viseme/D.svg'),  // A/H — mulut lebar
-  E: require('../assets/bot/viseme/E.svg'),  // O/U — bulat
-  F: require('../assets/bot/viseme/F.svg'),  // U/W — fallback E
-  G: require('../assets/bot/viseme/G.svg'),  // S/Z/T/D/N — gigi terlihat
-  H: require('../assets/bot/viseme/H.svg'),  // F/V — celah tipis
-  X: require('../assets/bot/viseme/X.svg'),  // Silent — rileks
+  a: require('../assets/bot/viseme/a.svg'),  // M/B/P  — bibir tutup
+  b: require('../assets/bot/viseme/b.svg'),  // I/E    — meregang
+  c: require('../assets/bot/viseme/c.svg'),  // Schwa  — netral rileks
+  d: require('../assets/bot/viseme/d.svg'),  // A/H    — mulut lebar
+  e: require('../assets/bot/viseme/e.svg'),  // O/U    — bulat
+  f: require('../assets/bot/viseme/f.svg'),  // U/W    — fallback E
+  G: require('../assets/bot/viseme/G.svg'),  // S/Z/T  — gigi terlihat
+  H: require('../assets/bot/viseme/H.svg'),  // F/V    — celah tipis
+  x: require('../assets/bot/viseme/x.svg'),  // Silent — rileks
 };
 
+// ── VISEME lookup: terima kode Rhubarb (A–H, X) huruf apa pun ────────────────
+// Semua kode dinormalisasi ke asset yang benar tanpa rename file.
 const VISEME = {
-  // Rhubarb standard set
-  X: V.X, A: V.A, B: V.B, C: V.C, D: V.D, E: V.E,
-  F: V.F, G: V.G, H: V.H,
-  // Alias huruf kecil (defensive — jika backend kirim lowercase)
-  x: V.X, a: V.A, b: V.B, c: V.C, d: V.D, e: V.E,
-  f: V.F, g: V.G, h: V.H,
+  // Rhubarb uppercase (format standar backend)
+  X: V.x, A: V.a, B: V.b, C: V.c, D: V.d,
+  E: V.e, F: V.f, G: V.G, H: V.H,
+  // Rhubarb lowercase (defensive — jika backend kirim lowercase)
+  x: V.x, a: V.a, b: V.b, c: V.c, d: V.d,
+  e: V.e, f: V.f, g: V.G, h: V.H,
   // Alias fonem lama (defensive — jika ada data lama di DB)
-  M: V.B, P: V.B,           // bilabial â†’ B
-  O: V.A, U: V.E,           // vokal bulat â†’ A/E
-  K: V.G, N: V.D, L: V.D,  // konsonan â†’ alias terdekat
-  V: V.F,                    // labiodental â†’ F
+  M: V.a, P: V.a,            // bilabial → a (bibir tutup)
+  O: V.e, U: V.e,            // vokal bulat → e
+  K: V.G, N: V.d, L: V.d,   // konsonan → alias terdekat
+  V: V.H,                    // labiodental → H (celah tipis)
 };
 
-// Fallback loop saat speaking tanpa data viseme (premium live / tidak ada cue)
+// Fallback loop saat speaking tanpa data viseme
 const SPEAKING_LOOP = ['X', 'A', 'G', 'D', 'G', 'B', 'C', 'D', 'A', 'E'];
 
-// Map botState â†’ expression asset
+// Map botState → expression asset
 const EXPR_MAP = {
   idle:              EXPR.idle,
   listening:         EXPR.listening,
@@ -67,7 +71,13 @@ const EXPR_MAP = {
   fast_track:        EXPR.celebrating,
 };
 
-export default function BotCharacter({ size = 120, style, visemeData = null, showCompanion = false }) {
+// ── Komponen utama ────────────────────────────────────────────────────────────
+export default function BotCharacter({
+  size = 120,
+  style,
+  visemeData = null,
+  showCompanion = false,
+}) {
   const botState       = useStore((s) => s.botState);
   const streak         = useStore((s) => s.streak);
   const companionLevel = useStore((s) => s.companionLevel);
@@ -87,12 +97,12 @@ export default function BotCharacter({ size = 120, style, visemeData = null, sho
   const visemeTimerRef = useRef(null);
 
   const isSpeaking = botState === 'speaking_calm' || botState === 'speaking_hype';
-  const exprAsset  = EXPR_MAP[botState] || EXPR.idle;
+  const exprAsset  = EXPR_MAP[botState] ?? EXPR.idle;
 
-  // Resolve viseme — uppercase defensive, fallback ke X jika kode tidak dikenal
-  const visemeAsset = VISEME[currentViseme.toUpperCase()] || V.X;
+  // Resolve viseme — lookup langsung, fallback ke x (silent) jika kode tidak dikenal
+  const visemeAsset = VISEME[currentViseme] ?? V.x;
 
-  // â”€â”€ Crossfade saat ekspresi berubah â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Crossfade saat ekspresi berubah ─────────────────────────────────────────
   useEffect(() => {
     if (exprAsset !== currExpr) {
       setPrevExpr(currExpr);
@@ -104,7 +114,7 @@ export default function BotCharacter({ size = 120, style, visemeData = null, sho
     }
   }, [exprAsset]);
 
-  // â”€â”€ Float idle (selalu jalan) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Float idle (selalu jalan) ────────────────────────────────────────────────
   useEffect(() => {
     const float = Animated.loop(
       Animated.sequence([
@@ -116,7 +126,7 @@ export default function BotCharacter({ size = 120, style, visemeData = null, sho
     return () => float.stop();
   }, []);
 
-  // â”€â”€ Animasi per state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Animasi per state ────────────────────────────────────────────────────────
   useEffect(() => {
     shakeAnim.setValue(0);
     bounceAnim.setValue(1);
@@ -127,10 +137,10 @@ export default function BotCharacter({ size = 120, style, visemeData = null, sho
     if (botState === 'celebrating' || botState === 'level_up' || botState === 'fast_track') {
       const isSpecial = botState === 'level_up' || botState === 'fast_track';
       Animated.sequence([
-        Animated.timing(bounceAnim, { toValue: isSpecial ? 1.3 : 1.2,  duration: 120, useNativeDriver: true }),
-        Animated.timing(bounceAnim, { toValue: 0.92, duration: 100, useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: isSpecial ? 1.3 : 1.2,   duration: 120, useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 0.92,                     duration: 100, useNativeDriver: true }),
         Animated.timing(bounceAnim, { toValue: isSpecial ? 1.15 : 1.08, duration: 100, useNativeDriver: true }),
-        Animated.timing(bounceAnim, { toValue: 1.0,  duration: 100, useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 1.0,                      duration: 100, useNativeDriver: true }),
       ]).start();
 
     } else if (botState === 'disappointed_mild') {
@@ -186,7 +196,7 @@ export default function BotCharacter({ size = 120, style, visemeData = null, sho
     }
   }, [botState]);
 
-  // â”€â”€ Lip-sync viseme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Lip-sync viseme ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (visemeTimerRef.current) clearInterval(visemeTimerRef.current);
 
@@ -195,18 +205,18 @@ export default function BotCharacter({ size = 120, style, visemeData = null, sho
       return;
     }
 
-    if (visemeData && visemeData.mouthCues && visemeData.mouthCues.length > 0) {
+    if (visemeData?.mouthCues?.length > 0) {
       // Data Rhubarb / pcmToVisemes tersedia — sinkron per timestamp
-      const cues = visemeData.mouthCues;
+      const cues      = visemeData.mouthCues;
       const startTime = Date.now();
       const tick = () => {
         const elapsed = (Date.now() - startTime) / 1000;
-        const cue = cues.find(c => elapsed >= c.start && elapsed < c.end);
+        const cue     = cues.find((c) => elapsed >= c.start && elapsed < c.end);
         setCurrentViseme(cue ? cue.value : 'X');
       };
       visemeTimerRef.current = setInterval(tick, 40);
     } else {
-      // Fallback loop — saat premium live TTS belum punya viseme (Sprint G.2)
+      // Fallback loop — saat TTS tidak punya data viseme
       let idx = 0;
       visemeTimerRef.current = setInterval(() => {
         setCurrentViseme(SPEAKING_LOOP[idx % SPEAKING_LOOP.length]);
@@ -214,19 +224,21 @@ export default function BotCharacter({ size = 120, style, visemeData = null, sho
       }, 120);
     }
 
-    return () => { if (visemeTimerRef.current) clearInterval(visemeTimerRef.current); };
+    return () => {
+      if (visemeTimerRef.current) clearInterval(visemeTimerRef.current);
+    };
   }, [isSpeaking, visemeData]);
 
-  // â”€â”€ Companion badge (gamification) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Companion badge (gamification) ──────────────────────────────────────────
   const companionBadge = useMemo(() => {
     if (!showCompanion) return null;
-    if (companionLevel >= 5) return { icon: 'ðŸ‘‘', label: 'Master' };
-    if (companionLevel >= 3) return { icon: 'â­', label: 'Streak Pro' };
-    if (streak >= 5)         return { icon: 'ðŸ”¥', label: `Streak ${streak}` };
+    if (companionLevel >= 5) return { icon: '👑', label: 'Master' };
+    if (companionLevel >= 3) return { icon: '⭐', label: 'Streak Pro' };
+    if (streak >= 5)         return { icon: '🔥', label: `Streak ${streak}` };
     return null;
   }, [showCompanion, companionLevel, streak]);
 
-  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.wrapper, style]}>
       <Animated.View
@@ -271,7 +283,7 @@ export default function BotCharacter({ size = 120, style, visemeData = null, sho
   );
 }
 
-// â”€â”€ Intro/Body version (full body untuk halaman beranda) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── BotBody — full body untuk halaman beranda ────────────────────────────────
 export function BotBody({ size = 200, style }) {
   const floatAnim = useRef(new Animated.Value(0)).current;
 
@@ -293,9 +305,10 @@ export function BotBody({ size = 200, style }) {
   );
 }
 
+// ── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  wrapper:    { alignItems: 'center', justifyContent: 'center' },
-  container:  { alignItems: 'center', justifyContent: 'center' },
+  wrapper:   { alignItems: 'center', justifyContent: 'center' },
+  container: { alignItems: 'center', justifyContent: 'center' },
   badge: {
     position: 'absolute',
     bottom: -8,
