@@ -1,5 +1,5 @@
-// src/screens/SessionResultScreen.jsx
-// Rewrite dari stub — session end (practice) dan Fast Track level_up
+﻿// src/screens/SessionResultScreen.jsx
+// Rewrite dari stub â€” session end (practice) dan Fast Track level_up
 // Params: { accuracy, totalQuestions, correctAnswers, timeTotalMs, levelUp, level,
 //           newLevel, sessionCount, avgTimeMs, drillSuggested, levelAccess }
 // FIX v2: ganti expo-av -> expo-audio (useAudioPlayer hook)
@@ -12,12 +12,8 @@ import { useStore } from '../store/useStore';
 import { api } from '../services/api';
 import BotCharacter from '../components/BotCharacter';
 
-// Target waktu per level (ms) — untuk pilih bot_levelup_speed_*
-const TARGET_MS = {
-  1:15000, 2:12000, 3:10000, 4:9000,  5:8000,
-  6:9000,  7:9000,  8:8000,  9:6000,  10:14000,
-  11:17000,12:17000,13:25000,14:25000,15:10000,
-};
+// TARGET_MS dipindah ke src/constants/levelTargets.js (single source of truth)
+import { targetMsFor } from '../constants/levelTargets';
 
 const C = {
   bg: '#0A0A12', surface: '#13131F', cyan: '#00F0FF',
@@ -46,7 +42,7 @@ export default function SessionResultScreen({ navigation, route }) {
   const displayLevel = levelUp ? newLevel : level;
   const mins    = Math.floor(timeTotalMs / 60000);
   const secs    = Math.floor((timeTotalMs % 60000) / 1000);
-  const timeStr = timeTotalMs > 0 ? `${mins}m ${secs}s` : '—';
+  const timeStr = timeTotalMs > 0 ? `${mins}m ${secs}s` : 'â€”';
 
   const newLevelNeedsPay = levelUp && (levelAccess === 'locked' || levelAccess === 'trial');
 
@@ -99,7 +95,7 @@ export default function SessionResultScreen({ navigation, route }) {
 
     if (levelUp) {
       store.setBotState('level_up');
-      const target = TARGET_MS[level] ?? 10000;
+      const target = targetMsFor(level);
       if (sessionCount <= 4)       audioId = 'bot_levelup_few';
       else if (sessionCount >= 9)  audioId = 'bot_levelup_many';
       else if (pct <= 87)          audioId = 'bot_levelup_skill_weak';
@@ -131,13 +127,13 @@ export default function SessionResultScreen({ navigation, route }) {
     };
   }, []);
 
-  const heroEmoji = levelUp ? '🚀' : pct >= 80 ? '⭐' : '📊';
+  const heroEmoji = levelUp ? 'ðŸš€' : pct >= 80 ? 'â­' : 'ðŸ“Š';
   const heroMsg   = levelUp
     ? `Level ${level} selesai! Kamu naik ke Level ${newLevel}!`
-    : pct >= 90 ? 'Luar biasa! Akurasi sempurna 🔥'
-    : pct >= 75 ? 'Bagus! Terus pertahankan 💪'
-    : pct >= 50 ? 'Lumayan! Masih ada ruang berkembang 📈'
-    : 'Tetap semangat! Latihan terus ya 🌱';
+    : pct >= 90 ? 'Luar biasa! Akurasi sempurna ðŸ”¥'
+    : pct >= 75 ? 'Bagus! Terus pertahankan ðŸ’ª'
+    : pct >= 50 ? 'Lumayan! Masih ada ruang berkembang ðŸ“ˆ'
+    : 'Tetap semangat! Latihan terus ya ðŸŒ±';
 
   return (
     <ScrollView
@@ -153,7 +149,7 @@ export default function SessionResultScreen({ navigation, route }) {
         <Text style={s.heroMsg}>{heroMsg}</Text>
         {levelUp && (
           <View style={s.levelUpBadge}>
-            <Text style={s.levelUpBadgeText}>NAIK LEVEL 🎉</Text>
+            <Text style={s.levelUpBadgeText}>NAIK LEVEL ðŸŽ‰</Text>
           </View>
         )}
       </View>
@@ -175,7 +171,7 @@ export default function SessionResultScreen({ navigation, route }) {
 
       {newLevelNeedsPay && (
         <View style={s.payBox}>
-          <Text style={s.payEmoji}>🔓</Text>
+          <Text style={s.payEmoji}>ðŸ”“</Text>
           <Text style={s.payTitle}>Selamat naik ke Level {newLevel}!</Text>
           <Text style={s.payDesc}>
             Kamu mendapat 5 soal preview gratis di Level {newLevel}.{'\n'}
@@ -185,7 +181,7 @@ export default function SessionResultScreen({ navigation, route }) {
             style={s.payBtn}
             onPress={() => navigation.navigate('UpgradePaywall', { level: newLevel })}
           >
-            <Text style={s.payBtnText}>🚀 Upgrade Level {newLevel} — Rp40.000</Text>
+            <Text style={s.payBtnText}>ðŸš€ Upgrade Level {newLevel} â€” Rp40.000</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={s.payBtnGhost}
@@ -199,12 +195,12 @@ export default function SessionResultScreen({ navigation, route }) {
       {drillSuggested && !levelUp && (
         <View style={s.drillBox}>
           <Text style={s.drillTitle}>Mau latihan kecepatan?</Text>
-          <Text style={s.drillDesc}>Akurasi sudah bagus — latih kecepatan dengan mode drill.</Text>
+          <Text style={s.drillDesc}>Akurasi sudah bagus â€” latih kecepatan dengan mode drill.</Text>
           <TouchableOpacity
             style={s.drillBtn}
             onPress={() => navigation.navigate('Practice', { mode: 'drill', level: displayLevel })}
           >
-            <Text style={s.drillBtnText}>Mulai Drill ⚡</Text>
+            <Text style={s.drillBtnText}>Mulai Drill âš¡</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -218,7 +214,7 @@ export default function SessionResultScreen({ navigation, route }) {
             style={s.btnGhost}
             onPress={() => navigation.navigate('Practice', { level: displayLevel })}
           >
-            <Text style={s.btnGhostText}>Lanjut Latihan →</Text>
+            <Text style={s.btnGhostText}>Lanjut Latihan â†’</Text>
           </TouchableOpacity>
         </>
       )}

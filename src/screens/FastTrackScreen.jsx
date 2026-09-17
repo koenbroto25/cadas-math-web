@@ -174,8 +174,11 @@ export default function FastTrackScreen() {
   const isMountedRef = useRef(true);
   const cancelledRef = useRef(false);
 
-  // expo-audio: single player instance
-  const player = useAudioPlayer(null);
+  // expo-audio: player terpisah per channel (cadas-sounds.md Bagian 3) —
+  // channel bot dan channel SFX tidak boleh berebut satu player.
+  const player     = useAudioPlayer(null);
+  const sfxPlayer  = useAudioPlayer(null);
+  const botBusyRef = useRef(false);   // true = Kak Cadas sedang bicara (SFX ditahan)
 
   useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
   useEffect(() => { testRef.current = test; },       [test]);
@@ -190,6 +193,8 @@ export default function FastTrackScreen() {
       clearInterval(timerRef.current);
       clearTimeout(navTimerRef.current);
       try { player.pause(); } catch (_) {}
+      try { sfxPlayer.pause(); } catch (_) {}
+      botBusyRef.current = false;
       stopSpeaking();
     };
   }, []);
@@ -208,6 +213,7 @@ export default function FastTrackScreen() {
       startSpeaking(vData, hype);
 
       // expo-audio: replace source dan play
+      botBusyRef.current = true;   // tahan SFX keypad selama bot bicara (Bagian 3)
       player.replace({ uri: url });
       player.play();
 
@@ -221,12 +227,30 @@ export default function FastTrackScreen() {
         }, 200);
       });
 
+      botBusyRef.current = false;
       if (!cancelledRef.current) stopSpeaking();
     } catch (err) {
+      botBusyRef.current = false;
       console.warn('[FastTrack:playBotAudio]', id, err?.message);
       stopSpeaking();
     }
   }, [startSpeaking, stopSpeaking, player]);
+
+  // Micro-sound keypad/tap (cadas-sounds.md Kelompok 5): one-shot pendek di
+  // channel SFX terpisah. TIDAK diputar saat Kak Cadas sedang bicara
+  // (Bagian 3: bot punya prioritas tertinggi; tanpa gate, SFX bisa terasa
+  // menabrak suara bot).
+  const playKeypadSfx = useCallback((id) => {
+    if (!id || !audioPrefs?.sfxEnabled) return;
+    if (botBusyRef.current) return;
+    try {
+      sfxPlayer.volume = audioPrefs.sfxVolume;
+      sfxPlayer.replace({ uri: api.sfxUrl(id) });
+      sfxPlayer.play();
+    } catch (err) {
+      console.warn('[FastTrack:playKeypadSfx]', id, err?.message);
+    }
+  }, [sfxPlayer, audioPrefs]);
 
   // Pre-test ritual: rule → brief → countdown
   async function runRitual() {
