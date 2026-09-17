@@ -1,11 +1,13 @@
-﻿// src/screens/HomeScreen.jsx — Redesign v3 (glow logo)
-import React from 'react';
+// src/screens/HomeScreen.jsx — Redesign v3 (glow logo)
+// Fix: duplikat konten dihapus, bot welcome audio dipulihkan
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { usePracticePlayer } from '../utils/createPlayer';
 import { useStore } from '../store/useStore';
 import { API_BASE } from '../services/api';
 import BotCharacter from '../components/BotCharacter';
@@ -31,6 +33,7 @@ const ACCESS_BADGE = {
   locked:          { label: '🔒 Terkunci',    color: C.magenta },
 };
 
+// ── CadasLogo ────────────────────────────────────────────────────────────────
 function CadasLogo() {
   return (
     <View style={logo.wrap}>
@@ -78,6 +81,7 @@ const logo = StyleSheet.create({
   },
 });
 
+// ── StatPill ─────────────────────────────────────────────────────────────────
 function StatPill({ icon, value, label, color }) {
   return (
     <View style={stat.pill}>
@@ -95,6 +99,7 @@ const stat = StyleSheet.create({
   label: { color: C.muted, fontSize: 11, fontWeight: '500' },
 });
 
+// ── HomeScreen ───────────────────────────────────────────────────────────────
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const {
@@ -104,13 +109,28 @@ export default function HomeScreen({ navigation }) {
     getConfidenceScore,
     levelAccess,
     setLevelAccess,
+    setBotState,
+    startSpeaking,
+    stopSpeaking,
   } = useStore();
+
+  const [levelName, setLevelName] = useState('');
+  const [welcomeUrl, setWelcomeUrl] = useState(null);
+  const [visemeData, setVisemeData] = useState(null);
+  const didPlayRef = useRef(false);
 
   const confidence     = getConfidenceScore();
   const fastTrackReady = confidence > 0.85;
-  const [levelName, setLevelName] = React.useState('');
+  const accessBadge    = ACCESS_BADGE[levelAccess] ?? ACCESS_BADGE.trial;
+  const isLocked       = levelAccess === 'locked' || levelAccess === 'trial_exhausted';
+  const pct            = Math.round(confidence * 100);
+  const displayName    = storeStudent?.display_name || storeStudent?.name || 'Cadas';
 
-  React.useEffect(() => {
+  // ── Audio player ───────────────────────────────────────────────────────────
+  const player = usePracticePlayer();
+
+  // ── Fetch level info ───────────────────────────────────────────────────────
+  useEffect(() => {
     if (!currentLevel) return;
     const studentId = storeStudent?.id;
     const url = studentId
@@ -120,17 +140,61 @@ export default function HomeScreen({ navigation }) {
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d) return;
-        if (d.name) setLevelName(d.name);
+        if (d.name)         setLevelName(d.name);
         if (d.level_access) setLevelAccess(d.level_access);
       })
       .catch(() => {});
   }, [currentLevel, storeStudent?.id]);
 
-  const accessBadge = ACCESS_BADGE[levelAccess] || ACCESS_BADGE.trial;
-  const isLocked    = levelAccess === 'locked' || levelAccess === 'trial_exhausted';
-  const pct         = Math.round(confidence * 100);
-  const displayName = storeStudent?.display_name || storeStudent?.name || 'Cadas';
+  // ── Fetch & play bot welcome audio ────────────────────────────────────────
+  useEffect(() => {
+    if (didPlayRef.current) return;
+    didPlayRef.current = true;
 
+    const audioKey = 'bot_home_welcome_01';
+
+    // 1. Fetch URL Audio (untuk player)
+    fetch(`${API_BASE}/api/bot-audio/${audioKey}`, { redirect: 'follow' })
+      .then(r => {
+        if (r.ok || r.redirected) setWelcomeUrl(r.url);
+      })
+      .catch(err => console.warn('[HomeAudio] url error:', err));
+
+    // 2. Fetch Konten Viseme (JSON)
+    fetch(`${API_BASE}/api/bot-viseme/${audioKey}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) setVisemeData(data);
+      })
+      .catch(err => console.warn('[HomeViseme] fetch error:', err));
+  }, []);
+
+  // ── Trigger Play & Lip-sync ───────────────────────────────────────────────
+  useEffect(() => {
+    if (welcomeUrl && player) {
+      player.replace({ uri: welcomeUrl });
+      player.play();
+      startSpeaking(visemeData);
+
+      const sub = player.addListener(({ didJustFinish }) => {
+        if (didJustFinish) {
+          stopSpeaking();
+          sub.remove();
+        }
+      });
+      return () => sub.remove();
+    }
+  }, [welcomeUrl, player, visemeData]);
+
+  // Cleanup saat unmount/pindah
+  useEffect(() => {
+    return () => {
+      player?.pause();
+      stopSpeaking();
+    };
+  }, [player]);
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <ScrollView
       style={s.container}
@@ -139,13 +203,13 @@ export default function HomeScreen({ navigation }) {
 
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
-      {/* Header */}
+      {/* Header: Logo kiri, Bot kanan */}
       <View style={s.header}>
         <View style={{ flex: 1 }}>
           <CadasLogo />
         </View>
         <TouchableOpacity onPress={() => navigation.navigate('Setelan')}>
-          <BotCharacter size={56} />
+          <BotCharacter size={56} visemeData={visemeData} />
         </TouchableOpacity>
       </View>
 
@@ -157,108 +221,11 @@ export default function HomeScreen({ navigation }) {
 
       {/* Stat pills */}
       <View style={s.statRow}>
-        <StatPill icon="🔥" value={streak} label="Hari Streak" color={C.magenta} />
+        <StatPill icon="🔥" value={streak}      label="Hari Streak" color={C.magenta} />
         <View style={{ width: 10 }} />
-        <StatPill icon="⚡" value={`${xp} XP`} label="XP Hari Ini" color={C.lime} />
+        <StatPill icon="⚡" value={`${xp} XP`}  label="XP Hari Ini" color={C.lime} />
         <View style={{ width: 10 }} />
-        <StatPill icon="📊" value={`${pct}%`} label="Confidence" color={C.cyan} />
-      </View>
-
-      {/* ── LOGO ─────────────────────────────────────────────────────────── */}
-      <CadasLogo />
-
-      {/* ── HERO: Bot + Greeting ─────────────────────────────────────────── */}
-      <LinearGradient
-        colors={['#00F0FF18', '#FF2EC410', '#0A0A12']}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={s.levelCard}>
-
-        <View style={[s.badge, { borderColor: accessBadge.color + '88' }]}>
-          <Text style={[s.badgeText, { color: accessBadge.color }]}>
-            {accessBadge.label}
-          </Text>
-        </View>
-
-        <Text style={s.levelNum}>Level {currentLevel}</Text>
-        <Text style={s.levelName}>{levelName || 'Memuat...'}</Text>
-
-        <View style={s.progressTrack}>
-          <View style={[s.progressFill, {
-            width: `${pct}%`,
-            backgroundColor: pct >= 85 ? C.lime : C.cyan,
-          }]} />
-        </View>
-        <Text style={s.progressLabel}>
-          Confidence {pct}%{pct >= 85 ? ' — Fast Track siap! ⚡' : ''}
-        </Text>
-      </LinearGradient>
-
-      {/* Banner upgrade */}
-      {isLocked && (
-        <TouchableOpacity
-          style={s.upgradeBanner}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('UpgradePaywall', { level: currentLevel })}>
-          <Text style={s.upgradeTitle}>🔒 Trial Habis</Text>
-          <Text style={s.upgradeDesc}>
-            Upgrade untuk lanjut latihan di Level {currentLevel}
-          </Text>
-          <View style={s.upgradeBtn}>
-            <Text style={s.upgradeBtnText}>Lihat Paket →</Text>
-          </View>
-        </TouchableOpacity>
-      )}
-
-      {/* Banner fast track */}
-      {fastTrackReady && !isLocked && (
-        <TouchableOpacity
-          style={s.fastTrackBanner}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('FastTrack', { level: currentLevel })}>
-          <Text style={s.fastTrackTitle}>⚡ Fast Track Tersedia!</Text>
-          <Text style={s.fastTrackDesc}>Kamu siap naik ke Level {currentLevel + 1}</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Tombol mulai */}
-      <TouchableOpacity
-        style={[s.startBtn, isLocked && s.startBtnLocked]}
-        activeOpacity={0.88}
-        onPress={() => {
-          if (isLocked) {
-            navigation.navigate('UpgradePaywall', { level: currentLevel });
-          } else {
-            navigation.navigate('Practice');
-          }
-        }}>
-        <Text style={[s.startBtnText, isLocked && { color: C.muted }]}>
-          {isLocked ? '🔒 UPGRADE UNTUK LANJUT' : 'MULAI LATIHAN 🚀'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Shortcut Ask Kakak */}
-      {levelAccess === 'premium' && (
-        <TouchableOpacity
-          style={s.askKakBtn}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('TanyaKak')}>
-          <Text style={s.askKakText}>💬 Tanya Kak — AI Tutor</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Salam */}
-      <View style={s.greetWrap}>
-        <Text style={s.greeting}>Hai, {displayName}! 👋</Text>
-        <Text style={s.greetingSub}>Siap latihan hari ini?</Text>
-      </View>
-
-      {/* Stat pills */}
-      <View style={s.statRow}>
-        <StatPill icon="🔥" value={streak} label="Hari Streak" color={C.magenta} />
-        <View style={{ width: 10 }} />
-        <StatPill icon="⚡" value={`${xp} XP`} label="XP Hari Ini" color={C.lime} />
-        <View style={{ width: 10 }} />
-        <StatPill icon="📊" value={`${pct}%`} label="Confidence" color={C.cyan} />
+        <StatPill icon="📊" value={`${pct}%`}   label="Confidence"  color={C.cyan} />
       </View>
 
       {/* Level card */}
@@ -330,7 +297,7 @@ export default function HomeScreen({ navigation }) {
         </Text>
       </TouchableOpacity>
 
-      {/* Shortcut Ask Kakak */}
+      {/* Shortcut Tanya Kak — hanya premium */}
       {levelAccess === 'premium' && (
         <TouchableOpacity
           style={s.askKakBtn}
@@ -344,6 +311,7 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
+// ── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container:       { flex: 1, backgroundColor: C.bg, paddingHorizontal: 20 },
   header:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },

@@ -6,6 +6,7 @@
 // - Bot ritual: pretest audio + halfway + last + result reaction
 // - BotCharacter overlay
 // FIX v2: ganti expo-av -> expo-audio (useAudioPlayer hook)
+// FIX v3: hapus duplikat deklarasi, fix fetchTest try/catch
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
@@ -39,125 +40,6 @@ export default function FastTrackScreen() {
   const stopSpeaking  = useStore((s) => s.stopSpeaking);
   const visemeData    = useStore((s) => s.visemeData);
   const audioPrefs    = useStore((s) => s.audioPrefs);
-
-  const [test,       setTest]       = useState(null);
-  const [current,    setCurrent]    = useState(0);
-  const [answers,    setAnswers]    = useState([]);
-  const [timeLeft,   setTimeLeft]   = useState(null);
-  const [showResult, setShowResult] = useState(false);
-  const [result,     setResult]     = useState(null);
-  const [ritualDone, setRitualDone] = useState(false);
-
-  const timerRef     = useRef(null);
-  const timeLeftRef  = useRef(null);
-  const testRef      = useRef(null);
-  const navTimerRef  = useRef(null);
-  const isMountedRef = useRef(true);
-  const cancelledRef = useRef(false);
-
-  // expo-audio: player terpisah per channel (cadas-sounds.md Bagian 3) —
-  // channel bot dan channel SFX tidak boleh berebut satu player.
-  const player     = useAudioPlayer(null);
-  const sfxPlayer  = useAudioPlayer(null);
-  const botBusyRef = useRef(false);   // true = Kak Cadas sedang bicara (SFX ditahan)
-
-  useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
-  useEffect(() => { testRef.current = test; },       [test]);
-
-  // Cleanup saat unmount
-  useEffect(() => {
-    isMountedRef.current = true;
-    cancelledRef.current = false;
-    return () => {
-      isMountedRef.current = false;
-      cancelledRef.current = true;
-      clearInterval(timerRef.current);
-      clearTimeout(navTimerRef.current);
-      try { player.pause(); } catch (_) {}
-      try { sfxPlayer.pause(); } catch (_) {}
-      botBusyRef.current = false;
-      stopSpeaking();
-    };
-  }, []);
-
-  // playBotAudio — pakai expo-audio
-  const playBotAudio = useCallback(async (id, hype = false) => {
-    try {
-      const url = api.botAudioUrl(id);
-
-      let vData = null;
-      try {
-        const vRes = await fetch(api.botVisemeUrl(id));
-        if (vRes.ok) vData = await vRes.json();
-      } catch (_) {}
-
-      startSpeaking(vData, hype);
-
-      // expo-audio: replace source dan play
-      botBusyRef.current = true;   // tahan SFX keypad selama bot bicara (Bagian 3)
-      player.replace({ uri: url });
-      player.play();
-
-      // Tunggu selesai dengan polling
-      await new Promise((resolve) => {
-        const check = setInterval(() => {
-          if (cancelledRef.current || !player.playing) {
-            clearInterval(check);
-            resolve();
-          }
-        }, 200);
-      });
-
-      botBusyRef.current = false;
-      if (!cancelledRef.current) stopSpeaking();
-    } catch (err) {
-      botBusyRef.current = false;
-      console.warn('[FastTrack:playBotAudio]', id, err?.message);
-      stopSpeaking();
-    }
-  }, [startSpeaking, stopSpeaking, player]);
-
-  // Micro-sound keypad/tap (cadas-sounds.md Kelompok 5): one-shot pendek di
-  // channel SFX terpisah. TIDAK diputar saat Kak Cadas sedang bicara
-  // (Bagian 3: bot punya prioritas tertinggi; tanpa gate, SFX bisa terasa
-  // menabrak suara bot).
-  const playKeypadSfx = useCallback((id) => {
-    if (!id || !audioPrefs?.sfxEnabled) return;
-    if (botBusyRef.current) return;
-    try {
-      sfxPlayer.volume = audioPrefs.sfxVolume;
-      sfxPlayer.replace({ uri: api.sfxUrl(id) });
-      sfxPlayer.play();
-    } catch (err) {
-      console.warn('[FastTrack:playKeypadSfx]', id, err?.message);
-    }
-  }, [sfxPlayer, audioPrefs]);
-
-  // Pre-test ritual: rule → brief → countdown
-  async function runRitual() {
-    setBotState('thinking');
-    await playBotAudio('bot_pretest_rule', false);
-    if (!isMountedRef.current) return;
-    await new Promise((r) => setTimeout(r, 400));
-    if (!isMountedRef.current) return;
-    await playBotAudio('bot_pretest_brief', false);
-    if (!isMountedRef.current) return;
-    await new Promise((r) => setTimeout(r, 400));
-    if (!isMountedRef.current) return;
-    setBotState('speaking_hype');
-    await playBotAudio('bot_pretest_countdown', true);
-    if (!isMountedRef.current) return;
-    setBotState('idle');
-    setRitualDone(true);
-  }
-
-  // ── Store — pakai student + token dari store, bukan AsyncStorage ──────────
-  const student       = useStore((s) => s.student);
-  const authToken     = useStore((s) => s.authToken);
-  const setBotState   = useStore((s) => s.setBotState);
-  const startSpeaking = useStore((s) => s.startSpeaking);
-  const stopSpeaking  = useStore((s) => s.stopSpeaking);
-  const visemeData    = useStore((s) => s.visemeData);
 
   const [test,       setTest]       = useState(null);
   const [current,    setCurrent]    = useState(0);

@@ -132,18 +132,6 @@ export const useStore = create((set, get) => ({
   setTeacherAuth:   (token, teacher) => set({ teacherToken: token, teacher }),
   clearTeacherAuth: ()               => set({ teacherToken: null, teacher: null }),
 
-  // -- Parent ----------------------------------------------------------------
-  parentToken:   null,
-  parentProfile: null,
-  setParentAuth:   (token, profile) => set({ parentToken: token, parentProfile: profile }),
-  clearParentAuth: ()               => set({ parentToken: null, parentProfile: null }),
-
-  // -- Teacher ------------------------------------------------------------
-  teacherToken: null,
-  teacher: null,
-  setTeacherAuth:   (token, teacher) => set({ teacherToken: token, teacher }),
-  clearTeacherAuth: ()               => set({ teacherToken: null, teacher: null }),
-
   // -- Referrer -----------------------------------------------------------
   referrerToken: null,
   referrer: null,

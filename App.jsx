@@ -1,4 +1,4 @@
-// App.jsx -- root navigation
+﻿// App.jsx -- root navigation
 // Patch: tambah DemoStack (DemoHome + DemoPractice)
 // Admin masuk demo via Settings screen yang memanggil /api/auth/demo/admin-token
 import React, { useEffect, useState } from 'react';
@@ -29,25 +29,6 @@ import ParentAuthScreen      from './src/screens/ParentAuthScreen';
 import TeacherAuthScreen     from './src/screens/TeacherAuthScreen';
 
 // Screens -- Parent Dashboard
-import ParentDashboardScreen from './src/screens/ParentDashboardScreen';
-import ChildProgressScreen   from './src/screens/ChildProgressScreen';
-import ChildSessionsScreen   from './src/screens/ChildSessionsScreen';
-import ChildBillingScreen    from './src/screens/ChildBillingScreen';
-
-// Screens -- Teacher Dashboard
-import TeacherDashboardScreen from './src/screens/TeacherDashboardScreen';
-import StudentDetailScreen    from './src/screens/StudentDetailScreen';
-
-// Screens -- Referrer
-import ReferrerLoginScreen          from './src/screens/ReferrerLoginScreen';
-import ReferrerDashboardScreen      from './src/screens/ReferrerDashboardScreen';
-import ReferrerEarningsScreen       from './src/screens/ReferrerEarningsScreen';
-import ReferrerClicksScreen         from './src/screens/ReferrerClicksScreen';
-import ReferrerBankScreen           from './src/screens/ReferrerBankScreen';
-import ReferrerChangePasswordScreen from './src/screens/ReferrerChangePasswordScreen';
-
-// Screens -- Demo Mode
-import DemoHomeScreen from './src/screens/DemoHomeScreen';
 
 // Screens -- Parent Dashboard (Sprint E)
 import ParentDashboardScreen from './src/screens/ParentDashboardScreen';
@@ -143,7 +124,7 @@ export default function App() {
         if (refToken && rawRef) {
           const ref = JSON.parse(rawRef);
           setReferrerAuth(refToken, ref);
-          // Jika marketing → restore demo mode juga
+          // Jika marketing â†’ restore demo mode juga
           if (ref?.type === 'marketing') {
             setDemoMode('marketing', ref.full_name || 'Marketing Demo', null);
           }
@@ -164,7 +145,7 @@ export default function App() {
         await useStore.getState().hydrateAudioState?.();
 
         // CATATAN: demo mode admin tidak di-persist di AsyncStorage
-        // (sengaja — admin harus aktifkan ulang setiap sesi via Settings)
+        // (sengaja â€” admin harus aktifkan ulang setiap sesi via Settings)
       } catch (_) {}
       setBootstrapped(true);
     })();
@@ -188,7 +169,7 @@ export default function App() {
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
 
-            {/* ── DEMO STACK (admin / marketing / client passcode) ─────── */}
+            {/* â”€â”€ DEMO STACK (admin / marketing / client passcode) â”€â”€â”€â”€â”€â”€â”€ */}
             {isDemo ? (
               <>
                 <Stack.Screen name='DemoHome'     component={DemoHomeScreen} />
@@ -196,7 +177,7 @@ export default function App() {
                 <Stack.Screen name='SessionResult' component={SessionResultScreen} />
               </>
 
-            /* ── REFERRER DASHBOARD (school / non-marketing referrer) ── */
+            /* â”€â”€ REFERRER DASHBOARD (school / non-marketing referrer) â”€â”€ */
             ) : isReferrerOnlyDashboard ? (
               <>
                 <Stack.Screen name='ReferrerDashboard' component={ReferrerDashboardScreen} />
@@ -206,7 +187,7 @@ export default function App() {
                 <Stack.Screen name='ReferrerPassword'  component={ReferrerChangePasswordScreen} />
               </>
 
-            /* ── PARENT STACK ────────────────────────────────────────── */
+            /* â”€â”€ PARENT STACK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             ) : isParent ? (
               <>
                 <Stack.Screen name='ParentDashboard' component={ParentDashboardScreen} />
@@ -215,14 +196,14 @@ export default function App() {
                 <Stack.Screen name='ChildBilling'    component={ChildBillingScreen} />
               </>
 
-            /* ── TEACHER STACK ───────────────────────────────────────── */
+            /* â”€â”€ TEACHER STACK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             ) : isTeacher ? (
               <>
                 <Stack.Screen name='TeacherDashboard' component={TeacherDashboardScreen} />
                 <Stack.Screen name='StudentDetail'    component={StudentDetailScreen} />
               </>
 
-            /* ── AUTH STACK (belum login) ────────────────────────────── */
+            /* â”€â”€ AUTH STACK (belum login) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             ) : !isLoggedIn ? (
               <>
                 <Stack.Screen name='RoleSelect'      component={RoleSelectScreen} />
@@ -234,7 +215,7 @@ export default function App() {
                 <Stack.Screen name='ReferrerLogin'   component={ReferrerLoginScreen} />
               </>
 
-            /* ── PLACEMENT WAJIB ─────────────────────────────────────── */
+            /* â”€â”€ PLACEMENT WAJIB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             ) : needPlacement ? (
               <>
                 <Stack.Screen name='Placement'       component={PlacementScreen} />
@@ -242,7 +223,7 @@ export default function App() {
                 <Stack.Screen name='ParentAuth'      component={ParentAuthScreen} />
               </>
 
-            /* ── MAIN APP (student login + placement done) ───────────── */
+            /* â”€â”€ MAIN APP (student login + placement done) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             ) : (
               <>
                 <Stack.Screen name='Main'           component={TabNavigator} />

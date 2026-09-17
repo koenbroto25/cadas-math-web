@@ -1,5 +1,5 @@
-﻿// src/screens/PracticeScreen.jsx
-// Layar latihan utama Ã¢â‚¬” soal di WebView, bot overlay di atas
+// src/screens/PracticeScreen.jsx
+// Layar latihan utama â€� soal di WebView, bot overlay di atas
 // Sprint H.6: bot reaction audio lengkap (52 file mapping)
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAudioPlayer } from 'expo-audio';
+import { usePracticePlayer } from '../utils/createPlayer';
 import { useStore } from '../store/useStore';
 import { api, BASE_URL } from '../services/api';
 import BotCharacter from '../components/BotCharacter';
@@ -29,7 +29,7 @@ const COLORS = {
   muted:   '#888899',
 };
 
-// Ã¢”â‚¬Ã¢”â‚¬ Bot audio helpers Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬
+// â�€â�€ Bot audio helpers â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
 const CORRECT_SOUNDS = [
   'bot_correct_01','bot_correct_02','bot_correct_03',
   'bot_correct_04','bot_correct_05',
@@ -53,7 +53,7 @@ export default function PracticeScreen({ navigation }) {
     getConfidenceScore, student, demoMode,
   } = useStore();
 
-  // ── Audio paket cadas-audio: BGM + micro-sound (cadas-sounds.md Bagian 4) ──
+  // -- Audio paket cadas-audio: BGM + micro-sound (cadas-sounds.md Bagian 4) --
   const {
     startBgm, stopBgm, botSpeaking, playSfx,
   } = useGameAudio();
@@ -88,15 +88,15 @@ export default function PracticeScreen({ navigation }) {
   const stopSpeaking  = useStore((s) => s.stopSpeaking);
 
   // Expo Audio (expo-audio v57): lifecycle-bound players, mirrored to legacy refs
-  const ttsPlayer     = useAudioPlayer(null);   // exercise TTS (viseme lip-sync)
-  const botPlayer     = useAudioPlayer(null);   // bot reaction audio
+  const ttsPlayer = usePracticePlayer();   // exercise TTS (web+native)
+  const botPlayer = usePracticePlayer();   // bot reaction audio (web+native)
   soundRef.current    = ttsPlayer;
   botSoundRef.current = botPlayer;
   stopSpeakingRef.current = stopSpeaking;
 
   const exercise = exercises[currentIndex];
 
-  // Ã¢”â‚¬Ã¢”â‚¬ Selection Rule (FASE 8.3b) Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬
+  // â�€â�€ Selection Rule (FASE 8.3b) â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   const [variantInfo,   setVariantInfo]   = useState(null);
   const [variantShown,  setVariantShown]  = useState(false);
 
@@ -111,12 +111,12 @@ export default function PracticeScreen({ navigation }) {
     return () => { cancelled = true; };
   }, [student?.id, currentLevel, exercise?.concept_id]);
 
-  // Ã¢”â‚¬Ã¢”â‚¬ Load soal + welcome audio Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬
+  // â�€â�€ Load soal + welcome audio â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   useEffect(() => {
     loadExercises();
   }, [currentLevel]);
 
-  // — Cleanup saat unmount: hentikan timer & audio yang masih tertunda —
+  // � Cleanup saat unmount: hentikan timer & audio yang masih tertunda �
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -149,7 +149,7 @@ export default function PracticeScreen({ navigation }) {
     return () => { try { botSub.remove(); } catch (_){} try { ttsSub.remove(); } catch (_){} };
   }, [botPlayer, ttsPlayer]);
 
-  // ── Backsound: mulai setelah soal siap, hentikan saat keluar layar ─────
+  // -- Backsound: mulai setelah soal siap, hentikan saat keluar layar -----
   // Track dipilih SEKALI per sesi (tidak berganti di tengah sesi) dan
   // disimpan di store agar SessionResult melanjutkan lagu yang sama.
   useEffect(() => {
@@ -160,7 +160,7 @@ export default function PracticeScreen({ navigation }) {
     return () => { stopBgm(); };
   }, [loading, currentLevel, exercise?.id]);
 
-  // ─ sfx_session_start: sekali saat sesi pertama kali siap ──────────────
+  // - sfx_session_start: sekali saat sesi pertama kali siap --------------
   useEffect(() => {
     if (loading || !exercise || sessionStartSfxRef.current) return;
     sessionStartSfxRef.current = true;
@@ -183,7 +183,7 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // Ã¢”â‚¬Ã¢”â‚¬ Idle detection: 30s audio, 60s audio, 120s sleeping Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬
+  // â�€â�€ Idle detection: 30s audio, 60s audio, 120s sleeping â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   function resetIdleTimer() {
     clearTimeout(idleTimer.current);
     clearTimeout(idleAudio30.current);
@@ -210,7 +210,7 @@ export default function PracticeScreen({ navigation }) {
     };
   }, [currentIndex]);
 
-  // Ã¢”â‚¬Ã¢”â‚¬ Pesan dari WebView (jawaban siswa) Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬
+  // â�€â�€ Pesan dari WebView (jawaban siswa) â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   const handleMessage = useCallback(async (event) => {
     resetIdleTimer();
     let msg;
@@ -227,7 +227,7 @@ export default function PracticeScreen({ navigation }) {
     }
   }, [exercise, startTime, wrongCount, botMode, streak]);
 
-  // Ã¢”â‚¬Ã¢”â‚¬ handleCorrect Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬
+  // â�€â�€ handleCorrect â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   async function handleCorrect(timeMs) {
     if (variantShown && student?.id && exercise?.concept_id) {
       api.recordVariantHelpful({
@@ -244,8 +244,8 @@ export default function PracticeScreen({ navigation }) {
     setShowHint(false);
     setHintLevel(0);
 
-    // ── Micro-sound (cadas-sounds.md Bagian 2) ────────────────────────────
-    // Satu sfxPlayer → satu SFX per event; streak lebih meriah menang atas
+    // -- Micro-sound (cadas-sounds.md Bagian 2) ----------------------------
+    // Satu sfxPlayer ? satu SFX per event; streak lebih meriah menang atas
     // feedback biasa. sfx_correct_fast hanya Zona B & C (Bagian 6 poin 3).
     if (newStreak === 10) {
       playSfx(SFX.STREAK_10);
@@ -324,7 +324,7 @@ export default function PracticeScreen({ navigation }) {
         const accuracy = sessionResults.length > 0 ? correct / sessionResults.length : 0;
         const drillSuggested = accuracy >= 0.8 && sessionResults.length >= 5;
 
-        // Demo mode: skip saveSession dan level-up — tidak hit DB
+        // Demo mode: skip saveSession dan level-up � tidak hit DB
         let sessionResp = null;
         if (student?.id && !demoMode) {
           try {
@@ -341,7 +341,7 @@ export default function PracticeScreen({ navigation }) {
         const newLevelVal  = sessionResp?.new_level    ?? currentLevel;
         const sessionCount = sessionResp?.session_count ?? 0;
         if (didLevelUp) useStore.getState().setLevel(newLevelVal);
-        // Riwayat sesi per level → dasar unlock track adaptif Zona B
+        // Riwayat sesi per level ? dasar unlock track adaptif Zona B
         // (cadas-sounds.md Bagian 6 poin 2)
         useStore.getState().setLevelSessionCount(currentLevel, sessionCount);
         if (didLevelUp) useStore.getState().setBgmTrack(null);   // zona baru = lagu baru
@@ -366,7 +366,7 @@ export default function PracticeScreen({ navigation }) {
     }, newStreak >= 5 ? 1500 : 800);
   }
 
-  // Ã¢”â‚¬Ã¢”â‚¬ handleWrong Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬
+  // â�€â�€ handleWrong â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   async function handleWrong() {
     const newWrongCount   = wrongCount + 1;
     const prevStreak      = prevStreakRef.current;  // baca sebelum di-reset
@@ -381,10 +381,10 @@ export default function PracticeScreen({ navigation }) {
       playBotAudio('bot_streak_break_short').catch(() => {});
     }
 
-    // ── Micro-sound (cadas-sounds.md Bagian 2) ────────────────────────────
+    // -- Micro-sound (cadas-sounds.md Bagian 2) ----------------------------
     // sfx_wrong selalu berbunyi (feedback wajib, 0.28 s hasil regen). Jika
     // streak baru saja putus (>=5), susulkan sfx_streak_break SETELAH
-    // sfx_wrong selesai — satu sfxPlayer, jadi dijalankan berurutan, bukan
+    // sfx_wrong selesai � satu sfxPlayer, jadi dijalankan berurutan, bukan
     // bertumpuk (320 ms > durasi sfx_wrong 280 ms).
     playSfx(SFX.WRONG);
     if (prevStreak >= 5) {
@@ -453,21 +453,21 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // Ã¢”â‚¬Ã¢”â‚¬ playBotAudio Ã¢â‚¬” bot reaction (no exercise viseme) Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬
+  // â�€â�€ playBotAudio â€� bot reaction (no exercise viseme) â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   async function playBotAudio(id, hype = false) {
     try {
       const url = api.botAudioUrl(id);
       if (botSoundRef.current) {
         try { botSoundRef.current.pause(); } catch (_){}
       }
-      // Sprint H.7 — fetch viseme dari R2 via /api/bot-viseme/:id
+      // Sprint H.7 � fetch viseme dari R2 via /api/bot-viseme/:id
       // Jika gagal (network/404), fallback ke SPEAKING_LOOP di BotCharacter (vData=null)
       let vData = null;
       try {
         const vRes = await fetch(api.botVisemeUrl(id));
         if (vRes.ok) vData = await vRes.json();
       } catch (_) {}
-      // Aktifkan lip-sync di BotCharacter — hype=true → speaking_hype (ekspresi semangat)
+      // Aktifkan lip-sync di BotCharacter � hype=true ? speaking_hype (ekspresi semangat)
       startSpeaking(vData, hype);
       botSpeakingRef.current?.(true);   // ducking BGM ke 20% selama Kak Cadas bicara
       botSoundRef.current.replace({ uri: url });
@@ -478,7 +478,7 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // Ã¢”â‚¬Ã¢”â‚¬ playSound Ã¢â‚¬” exercise TTS dengan viseme lip-sync Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬
+  // â�€â�€ playSound â€� exercise TTS dengan viseme lip-sync â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   async function playSound(url, hype = false) {
     try {
       if (soundRef.current) {
@@ -496,7 +496,7 @@ export default function PracticeScreen({ navigation }) {
         }
       } catch (_) {}
       startSpeaking(vData, hype);
-      botSpeakingRef.current?.(true);   // TTS = suara Kak Cadas → BGM ducked
+      botSpeakingRef.current?.(true);   // TTS = suara Kak Cadas ? BGM ducked
       soundRef.current.replace({ uri: url });
       soundRef.current.play();
     } catch (err) {
@@ -505,7 +505,7 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // Ã¢”â‚¬Ã¢”â‚¬ Inject script WebView Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬
+  // â�€â�€ Inject script WebView â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   const INJECTED_JS = `
     (function() {
       var orig = window.checkAnswer;
@@ -553,7 +553,7 @@ export default function PracticeScreen({ navigation }) {
 
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{'Ã¢â€ Â'}</Text>
+          <Text style={styles.back}>{'â†'}</Text>
         </TouchableOpacity>
         <Text style={styles.levelLabel}>Level {currentLevel}</Text>
         <Text style={styles.progress}>{currentIndex + 1}/{exercises.length}</Text>

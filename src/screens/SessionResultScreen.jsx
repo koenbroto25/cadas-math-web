@@ -1,5 +1,5 @@
 ﻿// src/screens/SessionResultScreen.jsx
-// Rewrite dari stub â€” session end (practice) dan Fast Track level_up
+// Rewrite dari stub — session end (practice) dan Fast Track level_up
 // Params: { accuracy, totalQuestions, correctAnswers, timeTotalMs, levelUp, level,
 //           newLevel, sessionCount, avgTimeMs, drillSuggested, levelAccess }
 // FIX v2: ganti expo-av -> expo-audio (useAudioPlayer hook)
@@ -42,7 +42,7 @@ export default function SessionResultScreen({ navigation, route }) {
   const displayLevel = levelUp ? newLevel : level;
   const mins    = Math.floor(timeTotalMs / 60000);
   const secs    = Math.floor((timeTotalMs % 60000) / 1000);
-  const timeStr = timeTotalMs > 0 ? `${mins}m ${secs}s` : 'â€”';
+  const timeStr = timeTotalMs > 0 ? `${mins}m ${secs}s` : '—';
 
   const newLevelNeedsPay = levelUp && (levelAccess === 'locked' || levelAccess === 'trial');
 
@@ -127,13 +127,13 @@ export default function SessionResultScreen({ navigation, route }) {
     };
   }, []);
 
-  const heroEmoji = levelUp ? 'ðŸš€' : pct >= 80 ? 'â­' : 'ðŸ“Š';
+  const heroEmoji = levelUp ? '🚀' : pct >= 80 ? '⭐' : '📊';
   const heroMsg   = levelUp
     ? `Level ${level} selesai! Kamu naik ke Level ${newLevel}!`
-    : pct >= 90 ? 'Luar biasa! Akurasi sempurna ðŸ”¥'
-    : pct >= 75 ? 'Bagus! Terus pertahankan ðŸ’ª'
-    : pct >= 50 ? 'Lumayan! Masih ada ruang berkembang ðŸ“ˆ'
-    : 'Tetap semangat! Latihan terus ya ðŸŒ±';
+    : pct >= 90 ? 'Luar biasa! Akurasi sempurna 🔥'
+    : pct >= 75 ? 'Bagus! Terus pertahankan 💪'
+    : pct >= 50 ? 'Lumayan! Masih ada ruang berkembang 📈'
+    : 'Tetap semangat! Latihan terus ya 🌱';
 
   return (
     <ScrollView
@@ -149,7 +149,7 @@ export default function SessionResultScreen({ navigation, route }) {
         <Text style={s.heroMsg}>{heroMsg}</Text>
         {levelUp && (
           <View style={s.levelUpBadge}>
-            <Text style={s.levelUpBadgeText}>NAIK LEVEL ðŸŽ‰</Text>
+            <Text style={s.levelUpBadgeText}>NAIK LEVEL 🎉</Text>
           </View>
         )}
       </View>
@@ -171,7 +171,7 @@ export default function SessionResultScreen({ navigation, route }) {
 
       {newLevelNeedsPay && (
         <View style={s.payBox}>
-          <Text style={s.payEmoji}>ðŸ”“</Text>
+          <Text style={s.payEmoji}>🔓</Text>
           <Text style={s.payTitle}>Selamat naik ke Level {newLevel}!</Text>
           <Text style={s.payDesc}>
             Kamu mendapat 5 soal preview gratis di Level {newLevel}.{'\n'}
@@ -181,7 +181,7 @@ export default function SessionResultScreen({ navigation, route }) {
             style={s.payBtn}
             onPress={() => navigation.navigate('UpgradePaywall', { level: newLevel })}
           >
-            <Text style={s.payBtnText}>ðŸš€ Upgrade Level {newLevel} â€” Rp40.000</Text>
+            <Text style={s.payBtnText}>🚀 Upgrade Level {newLevel} — Rp40.000</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={s.payBtnGhost}
@@ -195,12 +195,12 @@ export default function SessionResultScreen({ navigation, route }) {
       {drillSuggested && !levelUp && (
         <View style={s.drillBox}>
           <Text style={s.drillTitle}>Mau latihan kecepatan?</Text>
-          <Text style={s.drillDesc}>Akurasi sudah bagus â€” latih kecepatan dengan mode drill.</Text>
+          <Text style={s.drillDesc}>Akurasi sudah bagus — latih kecepatan dengan mode drill.</Text>
           <TouchableOpacity
             style={s.drillBtn}
             onPress={() => navigation.navigate('Practice', { mode: 'drill', level: displayLevel })}
           >
-            <Text style={s.drillBtnText}>Mulai Drill âš¡</Text>
+            <Text style={s.drillBtnText}>Mulai Drill ⚡</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -214,7 +214,7 @@ export default function SessionResultScreen({ navigation, route }) {
             style={s.btnGhost}
             onPress={() => navigation.navigate('Practice', { level: displayLevel })}
           >
-            <Text style={s.btnGhostText}>Lanjut Latihan â†’</Text>
+            <Text style={s.btnGhostText}>Lanjut Latihan →</Text>
           </TouchableOpacity>
         </>
       )}

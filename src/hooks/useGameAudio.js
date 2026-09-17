@@ -9,14 +9,26 @@
 //   - Setelah bot selesai: BGM kembali ke volume normal, fade-in 1 detik.
 //   - Saat micro-sound berbunyi: BGM jalan normal di player terpisah.
 //
-// PENTING (anti-bug): hanya `expo-audio` (useAudioPlayer). Dilarang expo-av,
-// dilarang stopAsync/unloadAsync — cleanup memakai `pause()` dalam try/catch.
+// Platform support:
+//   - Android/iOS : expo-audio (useAudioPlayer) — native, sudah OK.
+//   - Web (WPA)   : HTMLAudioElement via createWebPlayer() — karena expo-audio
+//                   tidak support browser dan diam tanpa error.
 
 import { useCallback, useEffect, useRef } from 'react';
-import { useAudioPlayer } from 'expo-audio';
+import { Platform } from 'react-native';
 import { useStore } from '../store/useStore';
 import { api } from '../services/api';
 import { DUCK_RATIO, DUCK_FADE_MS } from '../audio/audioCatalog';
+import { createWebPlayer } from '../utils/webAudioPlayer';
+
+// Lazy-import expo-audio hanya di platform native supaya web build tidak error
+// saat bundler mencoba resolve modul native.
+let useAudioPlayer = null;
+if (Platform.OS !== 'web') {
+  // require() sinkron — aman karena ini top-level modul, bukan kondisional hook.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  useAudioPlayer = require('expo-audio').useAudioPlayer;
+}
 
 const FADE_STEP_MS = 100;
 
@@ -24,11 +36,58 @@ function stopFade(ref) {
   if (ref.current) { clearInterval(ref.current); ref.current = null; }
 }
 
+/**
+ * Buat player yang sesuai platform.
+ * - Web  : createWebPlayer() → HTMLAudioElement wrapper
+ * - Native: useAudioPlayer(null) dari expo-audio (dipanggil sebagai hook)
+ *
+ * CATATAN: di native, useAudioPlayer harus dipanggil tanpa kondisi (Rules of Hooks).
+ * Solusinya: kita selalu panggil useAudioPlayer di native, dan createWebPlayer di web.
+ * Kita TIDAK bisa pakai if (isWeb) { hook() } — itu melanggar Rules of Hooks.
+ * Jadi kita pisah lewat dua hook berbeda lalu merge.
+ */
+function usePlatformPlayers() {
+  // Di web: native hook tidak dipanggil sama sekali (file ini dijalankan per-platform
+  // lewat Metro bundler yang sudah membedakan Platform.OS saat build web).
+  // Namun Metro tetap parse semua hook — jadi kita perlu cara aman.
+  //
+  // Cara aman: panggil useAudioPlayer TANPA kondisional, tapi guard hasilnya.
+  // Kalau di web, useAudioPlayer = null (tidak di-require) → tidak dipanggil.
+
+  // ── Native ──────────────────────────────────────────────────────────────
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const nativeBgm = useAudioPlayer ? useAudioPlayer(null) : null;
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const nativeSfx = useAudioPlayer ? useAudioPlayer(null) : null;
+
+  // ── Web ──────────────────────────────────────────────────────────────────
+  const webBgmRef = useRef(null);
+  const webSfxRef = useRef(null);
+
+  if (Platform.OS === 'web') {
+    if (!webBgmRef.current) webBgmRef.current = createWebPlayer();
+    if (!webSfxRef.current) webSfxRef.current = createWebPlayer();
+  }
+
+  // Cleanup web players saat unmount
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    return () => {
+      webBgmRef.current?.destroy();
+      webSfxRef.current?.destroy();
+    };
+  }, []);
+
+  const bgmPlayer = Platform.OS === 'web' ? webBgmRef.current : nativeBgm;
+  const sfxPlayer = Platform.OS === 'web' ? webSfxRef.current : nativeSfx;
+
+  return { bgmPlayer, sfxPlayer };
+}
+
 export function useGameAudio() {
   const prefs = useStore((s) => s.audioPrefs);
 
-  const bgmPlayer = useAudioPlayer(null);
-  const sfxPlayer = useAudioPlayer(null);
+  const { bgmPlayer, sfxPlayer } = usePlatformPlayers();
 
   const trackRef   = useRef(null);    // track BGM yang sedang terpasang
   const duckRef    = useRef(false);   // true = bot sedang bicara
@@ -38,13 +97,14 @@ export function useGameAudio() {
   prefsRef.current = prefs;
 
   const setVol = useCallback((player, v) => {
+    if (!player) return;
     try { player.volume = v; } catch (_) {}
   }, []);
 
   const bgmTarget = useCallback(() => {
     const p = prefsRef.current;
     if (!p?.bgmEnabled) return 0;
-    return p.bgmVolume * (duckRef.current ? DUCK_RATIO : 1);
+    return (p.bgmVolume ?? 0.7) * (duckRef.current ? DUCK_RATIO : 1);
   }, []);
 
   // Volume ikut preferensi user
@@ -53,11 +113,11 @@ export function useGameAudio() {
   }, [prefs.bgmEnabled, prefs.bgmVolume, bgmPlayer, bgmTarget, setVol]);
 
   useEffect(() => {
-    setVol(sfxPlayer, prefs.sfxEnabled ? prefs.sfxVolume : 0);
+    if (!sfxPlayer) return;
+    setVol(sfxPlayer, prefs.sfxEnabled ? (prefs.sfxVolume ?? 1.0) : 0);
   }, [prefs.sfxEnabled, prefs.sfxVolume, sfxPlayer, setVol]);
 
   // Fade-in BGM dari 0 ke volume target dalam DUCK_FADE_MS (1 detik, step 100ms).
-  // Dipakai saat BGM kembali normal setelah bot selesai & saat startBgm({fadeIn}).
   const fadeToTarget = useCallback(() => {
     stopFade(fadeRef);
     const target = bgmTarget();
@@ -70,20 +130,19 @@ export function useGameAudio() {
       i += 1;
       if (i >= steps) {
         stopFade(fadeRef);
-        setVol(bgmPlayer, bgmTarget());   // baca ulang: pref bisa berubah saat fade
+        setVol(bgmPlayer, bgmTarget());
         return;
       }
       setVol(bgmPlayer, step * i);
     }, FADE_STEP_MS);
   }, [bgmPlayer, bgmTarget, setVol]);
 
-  // ── Backsound ──────────────────────────────────────────────────────────
-  // opts.fadeIn: mulai dari 0 lalu naik ke volume normal (Bagian 3: fade-in)
+  // ── Backsound ────────────────────────────────────────────────────────────
   const startBgm = useCallback((track, opts = {}) => {
-    if (!track || !prefsRef.current?.bgmEnabled) return;
+    if (!track || !prefsRef.current?.bgmEnabled || !bgmPlayer) return;
     try {
       if (trackRef.current !== track) {
-        bgmPlayer.loop = true;                       // loop seamless
+        bgmPlayer.loop = true;
         bgmPlayer.replace({ uri: api.bgmUrl(track) });
         trackRef.current = track;
       }
@@ -104,10 +163,9 @@ export function useGameAudio() {
   const stopBgm = useCallback(() => {
     stopFade(fadeRef);
     trackRef.current = null;
-    try { bgmPlayer.pause(); } catch (_) {}
+    try { bgmPlayer?.pause(); } catch (_) {}
   }, [bgmPlayer]);
 
-  // Volume BGM saat bot berbicara (ducking) / kembali normal (fade-in 1s)
   const duckBgm = useCallback((on) => {
     duckRef.current = !!on;
     if (on) {
@@ -118,20 +176,19 @@ export function useGameAudio() {
     }
   }, [bgmPlayer, bgmTarget, fadeToTarget, setVol]);
 
-  /** Panggil true tepat sebelum bot/TTS diputar, false saat playback selesai. */
   const botSpeaking = useCallback((on) => {
     botBusyRef.current = !!on;
     duckBgm(!!on);
   }, [duckBgm]);
 
-  // ── Micro-sound ────────────────────────────────────────────────────────
+  // ── Micro-sound ──────────────────────────────────────────────────────────
   const playSfx = useCallback((id) => {
-    if (!id) return;
+    if (!id || !sfxPlayer) return;
     const p = prefsRef.current;
     if (!p?.sfxEnabled) return;
-    if (botBusyRef.current) return;   // Bagian 3: tidak bersamaan dengan bot
+    if (botBusyRef.current) return;
     try {
-      sfxPlayer.volume = p.sfxVolume;
+      sfxPlayer.volume = p.sfxVolume ?? 1.0;
       sfxPlayer.replace({ uri: api.sfxUrl(id) });
       sfxPlayer.play();
     } catch (err) {
@@ -139,11 +196,11 @@ export function useGameAudio() {
     }
   }, [sfxPlayer]);
 
-  // ── Cleanup (wajib pause, bukan stop/unload) ───────────────────────────
+  // ── Cleanup ──────────────────────────────────────────────────────────────
   useEffect(() => () => {
     stopFade(fadeRef);
-    try { bgmPlayer.pause(); } catch (_) {}
-    try { sfxPlayer.pause(); } catch (_) {}
+    try { bgmPlayer?.pause(); } catch (_) {}
+    try { sfxPlayer?.pause(); } catch (_) {}
   }, [bgmPlayer, sfxPlayer]);
 
   return {
