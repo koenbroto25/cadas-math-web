@@ -141,7 +141,7 @@ export default function DemoHomeScreen({ navigation }) {
     try {
       const token = await (await import('@react-native-async-storage/async-storage')).default.getItem('referrerToken');
       const data  = await api.demoPasscodeCreate(
-        schoolLabel || demoLabel + ' — Client', 2, token
+        schoolLabel || demoLabel + ' — Client', 0.5, token
       );
       setGenResult(data.passcode);
     } catch (e) {
