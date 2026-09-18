@@ -46,7 +46,7 @@ export default function ReferrerDashboardScreen({ navigation }) {
   useEffect(() => { load(); }, []);
 
   async function handleLogout() {
-    await AsyncStorage.multiRemove(['referrerToken', 'referrerProfile']);
+    await AsyncStorage.multiRemove(['referrerToken', 'referrerProfile', 'referrerDemoExpiresAt']);
     clearReferrerAuth();
     navigation.replace('ReferrerLogin');
   }

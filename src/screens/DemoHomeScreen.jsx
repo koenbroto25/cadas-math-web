@@ -157,7 +157,7 @@ export default function DemoHomeScreen({ navigation }) {
     clearReferrerAuth();
     clearAuth();
     AsyncStorage.multiRemove([
-      'referrerToken', 'referrerProfile',
+      'referrerToken', 'referrerProfile', 'referrerDemoExpiresAt',
       'authToken', 'authRole', 'student',
     ]).catch(() => {});
     // Kembali ke RoleSelect — App.jsx akan re-route otomatis

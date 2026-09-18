@@ -1,5 +1,5 @@
 // src/screens/PracticeScreen.jsx
-// Layar latihan utama â€� soal di WebView, bot overlay di atas
+// Layar latihan utama â€� soal di WebView, bot overlay di atas
 // Sprint H.6: bot reaction audio lengkap (52 file mapping)
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -29,7 +29,7 @@ const COLORS = {
   muted:   '#888899',
 };
 
-// â�€â�€ Bot audio helpers â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
+// â�€â�€ Bot audio helpers â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
 const CORRECT_SOUNDS = [
   'bot_correct_01','bot_correct_02','bot_correct_03',
   'bot_correct_04','bot_correct_05',
@@ -50,7 +50,7 @@ export default function PracticeScreen({ navigation }) {
     currentLevel, exercises, currentIndex,
     setExercises, nextExercise, recordAnswer,
     streak, botState, setBotState, botMode,
-    getConfidenceScore, student, demoMode,
+    getConfidenceScore, student, demoMode, adminQaMode,
   } = useStore();
 
   // -- Audio paket cadas-audio: BGM + micro-sound (cadas-sounds.md Bagian 4) --
@@ -96,7 +96,7 @@ export default function PracticeScreen({ navigation }) {
 
   const exercise = exercises[currentIndex];
 
-  // â�€â�€ Selection Rule (FASE 8.3b) â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
+  // â�€â�€ Selection Rule (FASE 8.3b) â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   const [variantInfo,   setVariantInfo]   = useState(null);
   const [variantShown,  setVariantShown]  = useState(false);
 
@@ -111,12 +111,12 @@ export default function PracticeScreen({ navigation }) {
     return () => { cancelled = true; };
   }, [student?.id, currentLevel, exercise?.concept_id]);
 
-  // â�€â�€ Load soal + welcome audio â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
+  // â�€â�€ Load soal + welcome audio â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   useEffect(() => {
     loadExercises();
   }, [currentLevel]);
 
-  // � Cleanup saat unmount: hentikan timer & audio yang masih tertunda �
+  // � Cleanup saat unmount: hentikan timer & audio yang masih tertunda �
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -183,7 +183,7 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // â�€â�€ Idle detection: 30s audio, 60s audio, 120s sleeping â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
+  // â�€â�€ Idle detection: 30s audio, 60s audio, 120s sleeping â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   function resetIdleTimer() {
     clearTimeout(idleTimer.current);
     clearTimeout(idleAudio30.current);
@@ -210,7 +210,7 @@ export default function PracticeScreen({ navigation }) {
     };
   }, [currentIndex]);
 
-  // â�€â�€ Pesan dari WebView (jawaban siswa) â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
+  // â�€â�€ Pesan dari WebView (jawaban siswa) â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   const handleMessage = useCallback(async (event) => {
     resetIdleTimer();
     let msg;
@@ -227,7 +227,7 @@ export default function PracticeScreen({ navigation }) {
     }
   }, [exercise, startTime, wrongCount, botMode, streak]);
 
-  // â�€â�€ handleCorrect â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
+  // â�€â�€ handleCorrect â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   async function handleCorrect(timeMs) {
     if (variantShown && student?.id && exercise?.concept_id) {
       api.recordVariantHelpful({
@@ -324,9 +324,9 @@ export default function PracticeScreen({ navigation }) {
         const accuracy = sessionResults.length > 0 ? correct / sessionResults.length : 0;
         const drillSuggested = accuracy >= 0.8 && sessionResults.length >= 5;
 
-        // Demo mode: skip saveSession dan level-up � tidak hit DB
+        // Demo mode: skip saveSession dan level-up � tidak hit DB
         let sessionResp = null;
-        if (student?.id && !demoMode) {
+        if (student?.id && !demoMode && !adminQaMode) {
           try {
             sessionResp = await api.saveSession({
               student_id: student.id,
@@ -366,7 +366,7 @@ export default function PracticeScreen({ navigation }) {
     }, newStreak >= 5 ? 1500 : 800);
   }
 
-  // â�€â�€ handleWrong â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
+  // â�€â�€ handleWrong â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   async function handleWrong() {
     const newWrongCount   = wrongCount + 1;
     const prevStreak      = prevStreakRef.current;  // baca sebelum di-reset
@@ -384,7 +384,7 @@ export default function PracticeScreen({ navigation }) {
     // -- Micro-sound (cadas-sounds.md Bagian 2) ----------------------------
     // sfx_wrong selalu berbunyi (feedback wajib, 0.28 s hasil regen). Jika
     // streak baru saja putus (>=5), susulkan sfx_streak_break SETELAH
-    // sfx_wrong selesai � satu sfxPlayer, jadi dijalankan berurutan, bukan
+    // sfx_wrong selesai � satu sfxPlayer, jadi dijalankan berurutan, bukan
     // bertumpuk (320 ms > durasi sfx_wrong 280 ms).
     playSfx(SFX.WRONG);
     if (prevStreak >= 5) {
@@ -453,21 +453,21 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // â�€â�€ playBotAudio â€� bot reaction (no exercise viseme) â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
+  // â�€â�€ playBotAudio â€� bot reaction (no exercise viseme) â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   async function playBotAudio(id, hype = false) {
     try {
       const url = api.botAudioUrl(id);
       if (botSoundRef.current) {
         try { botSoundRef.current.pause(); } catch (_){}
       }
-      // Sprint H.7 � fetch viseme dari R2 via /api/bot-viseme/:id
+      // Sprint H.7 � fetch viseme dari R2 via /api/bot-viseme/:id
       // Jika gagal (network/404), fallback ke SPEAKING_LOOP di BotCharacter (vData=null)
       let vData = null;
       try {
         const vRes = await fetch(api.botVisemeUrl(id));
         if (vRes.ok) vData = await vRes.json();
       } catch (_) {}
-      // Aktifkan lip-sync di BotCharacter � hype=true ? speaking_hype (ekspresi semangat)
+      // Aktifkan lip-sync di BotCharacter � hype=true ? speaking_hype (ekspresi semangat)
       startSpeaking(vData, hype);
       botSpeakingRef.current?.(true);   // ducking BGM ke 20% selama Kak Cadas bicara
       botSoundRef.current.replace({ uri: url });
@@ -478,7 +478,7 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // â�€â�€ playSound â€� exercise TTS dengan viseme lip-sync â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
+  // â�€â�€ playSound â€� exercise TTS dengan viseme lip-sync â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   async function playSound(url, hype = false) {
     try {
       if (soundRef.current) {
@@ -505,7 +505,7 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // â�€â�€ Inject script WebView â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
+  // â�€â�€ Inject script WebView â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€â�€
   const INJECTED_JS = `
     (function() {
       var orig = window.checkAnswer;

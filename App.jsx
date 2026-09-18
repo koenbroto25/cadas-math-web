@@ -51,6 +51,10 @@ import ReferrerChangePasswordScreen from './src/screens/ReferrerChangePasswordSc
 // Screens -- Demo Mode
 import DemoHomeScreen from './src/screens/DemoHomeScreen';
 
+// Screens -- Admin (owner/developer, full access QA)
+import AdminLoginScreen     from './src/screens/AdminLoginScreen';
+import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
+
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -96,9 +100,22 @@ export default function App() {
     referrerToken, setReferrerAuth,
     parentToken,   setParentAuth,
     teacherToken,  setTeacherAuth,
-    demoMode, demoKind, setDemoMode,
+    demoMode, demoKind, demoExpiresAt, setDemoMode,
+    clearDemoMode, clearReferrerAuth, clearAuth,
+    adminToken, setAdminAuth,
   } = useStore();
   const [bootstrapped, setBootstrapped] = useState(false);
+
+  // Keluar dari demo + bersihkan sesi demo tersimpan (dipakai watchdog)
+  function exitDemoNow() {
+    clearDemoMode();
+    clearReferrerAuth();
+    clearAuth();
+    AsyncStorage.multiRemove([
+      'referrerToken', 'referrerProfile', 'referrerDemoExpiresAt',
+      'authToken', 'authRole', 'student',
+    ]).catch(() => {});
+  }
 
   useEffect(() => {
     (async () => {
@@ -118,16 +135,33 @@ export default function App() {
           if (done === 'true') setPlacementDone(true);
         }
 
+        // Restore sesi admin (owner/developer) — portal admin, bukan demo
+        const admToken = await AsyncStorage.getItem('adminToken');
+        const rawAdmin = await AsyncStorage.getItem('adminProfile');
+        if (admToken) setAdminAuth(admToken, rawAdmin ? JSON.parse(rawAdmin) : null);
+
         // Restore sesi referrer
         const refToken = await AsyncStorage.getItem('referrerToken');
         const rawRef   = await AsyncStorage.getItem('referrerProfile');
+        const refExp   = await AsyncStorage.getItem('referrerDemoExpiresAt');
         if (refToken && rawRef) {
           const ref = JSON.parse(rawRef);
-          setReferrerAuth(refToken, ref);
-          // Jika marketing â†’ restore demo mode juga (auto-exit 30 menit)
           if (ref?.type === 'marketing') {
-            setDemoMode('marketing', ref.full_name || 'Marketing Demo',
-              Date.now() + 30 * 60 * 1000);
+            // FIX: jangan reset timer tiap load. Expiry disimpan
+            // di AsyncStorage oleh ReferrerLoginScreen.
+            const expMs = Number(refExp) || 0;
+            if (expMs > Date.now()) {
+              // Masih dalam window demo -> lanjut dengan sisa waktu
+              setReferrerAuth(refToken, ref);
+              setDemoMode('marketing', ref.full_name || 'Marketing Demo', expMs);
+            } else {
+              // Sesi demo lama tanpa batas / sudah habis -> JANGAN auto-demo.
+              // Dibersihkan agar kembali ke halaman default (RoleSelect -> HomeScreen).
+              await AsyncStorage.multiRemove(
+                ['referrerToken', 'referrerProfile', 'referrerDemoExpiresAt']);
+            }
+          } else {
+            setReferrerAuth(refToken, ref);
           }
         }
 
@@ -152,6 +186,16 @@ export default function App() {
     })();
   }, []);
 
+  // Watchdog demo: auto-exit tepat waktu walau DemoHome tidak ter-mount
+  // (mis. user sedang di DemoPractice atau tab lain).
+  useEffect(() => {
+    if (!demoMode || !demoExpiresAt) return;
+    const left = new Date(demoExpiresAt).getTime() - Date.now();
+    if (left <= 0) { exitDemoNow(); return; }
+    const id = setTimeout(exitDemoNow, left);
+    return () => clearTimeout(id);
+  }, [demoMode, demoExpiresAt]);
+
   if (!bootstrapped) return null;
 
   const isLoggedIn    = !!authToken;
@@ -161,6 +205,8 @@ export default function App() {
   const isTeacher     = !!teacherToken && !isLoggedIn;
   // Demo mode aktif: client passcode atau marketing yang sudah login
   const isDemo = demoMode;
+  // Admin (owner/developer): portal admin dengan full access QA
+  const isAdmin = !!adminToken;
   // Marketing referrer yang sedang demo: tetap punya referrerToken tapi masuk demo stack
   const isReferrerOnlyDashboard = isReferrer && !demoMode;
 
@@ -171,7 +217,15 @@ export default function App() {
           <Stack.Navigator screenOptions={{ headerShown: false }}>
 
             {/* â”€â”€ DEMO STACK (admin / marketing / client passcode) â”€â”€â”€â”€â”€â”€â”€ */}
-            {isDemo ? (
+            {isAdmin ? (
+              <>
+                <Stack.Screen name='AdminDashboard' component={AdminDashboardScreen} />
+                <Stack.Screen name='AdminPractice'  component={PracticeScreen} />
+                <Stack.Screen name='AdminFastTrack' component={FastTrackScreen} />
+                <Stack.Screen name='SessionResult'  component={SessionResultScreen} />
+              </>
+
+            ) : isDemo ? (
               <>
                 <Stack.Screen name='DemoHome'     component={DemoHomeScreen} />
                 <Stack.Screen name='DemoPractice' component={PracticeScreen} />
@@ -214,6 +268,7 @@ export default function App() {
                 <Stack.Screen name='ParentAuth'      component={ParentAuthScreen} />
                 <Stack.Screen name='TeacherAuth'     component={TeacherAuthScreen} />
                 <Stack.Screen name='ReferrerLogin'   component={ReferrerLoginScreen} />
+                <Stack.Screen name='AdminLogin'      component={AdminLoginScreen} />
               </>
 
             /* â”€â”€ PLACEMENT WAJIB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */

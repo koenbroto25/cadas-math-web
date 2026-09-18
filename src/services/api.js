@@ -137,4 +137,18 @@ export const api = {
     }, token),
   demoPasscodeRevoke: (id, token) =>
     authFetch(`/api/admin/demo-passcodes/${id}`, { method: 'DELETE' }, token),
+
+  // ── Admin (owner/developer) — full access QA ──────────────────────────────
+  // Token admin dari /api/auth/admin/login (TTL 8 jam). Dipakai sebagai
+  // Bearer ke endpoint /api/admin/* (diterima selain x-admin-secret).
+  adminLogin: (email, password) =>
+    authFetch('/api/auth/admin/login', {
+      method: 'POST', body: JSON.stringify({ email, password }),
+    }),
+  adminMe:        (token) => authFetch('/api/auth/admin/me', {}, token),
+  adminStudents:  (token) => authFetch('/api/admin/students', {}, token),
+  adminPayments:  (token) => authFetch('/api/admin/payments', {}, token),
+  adminReferrers: (token) => authFetch('/api/admin/referrers', {}, token),
+  adminBillingStatus: (studentId, token) =>
+    authFetch(`/api/admin/billing/status/${encodeURIComponent(studentId)}`, {}, token),
 };

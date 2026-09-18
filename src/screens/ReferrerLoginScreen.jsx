@@ -36,8 +36,11 @@ export default function ReferrerLoginScreen({ navigation }) {
 
       // Marketing type â†’ aktifkan demo mode (auto-exit 30 menit)
       if (data.referrer?.type === 'marketing') {
-        setDemoMode('marketing', data.referrer.full_name || 'Marketing Demo',
-          Date.now() + 30 * 60 * 1000);
+        // Deadline demo DISIMPAN: timer tidak boleh reset saat refresh,
+        // kalau tidak demo marketing tidak pernah berakhir (lihat App.jsx).
+        const demoExpiresAt = Date.now() + 30 * 60 * 1000;
+        await AsyncStorage.setItem('referrerDemoExpiresAt', String(demoExpiresAt));
+        setDemoMode('marketing', data.referrer.full_name || 'Marketing Demo', demoExpiresAt);
         navigation.replace('DemoHome');
       } else {
         navigation.replace('ReferrerDashboard');

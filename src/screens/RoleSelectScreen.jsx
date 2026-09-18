@@ -164,6 +164,11 @@ export default function RoleSelectScreen({ navigation }) {
           <Text style={s.ghostIcon}>👨‍🏫</Text>
           <Text style={s.ghostText}>Guru</Text>
         </TouchableOpacity>
+        <View style={s.ghostDivider} />
+        <TouchableOpacity style={s.ghostBtn} onPress={() => navigation.navigate('AdminLogin')}>
+          <Text style={s.ghostIcon}>🛠️</Text>
+          <Text style={s.ghostText}>Admin</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Modal passcode */}

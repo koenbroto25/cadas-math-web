@@ -48,6 +48,22 @@ export const useStore = create((set, get) => ({
     demoExpiresAt: null, demoLevel: 1,
   }),
 
+  // -- Admin (owner/developer) — full access QA ---------------------------
+  // Bukan demo: identitas admin terverifikasi via /api/auth/admin/login.
+  // adminQaMode aktif => premium semua level, tanpa timer, tanpa simpan sesi
+  // (agar data produksi & statistik BGM tidak tercemar).
+  adminToken:    null,
+  adminProfile:  null,
+  adminQaMode:   false,
+  setAdminAuth:  (token, profile) => set({ adminToken: token, adminProfile: profile || null }),
+  clearAdminAuth: () => set({
+    adminToken: null, adminProfile: null, adminQaMode: false,
+  }),
+  setAdminQaMode: (v) => set({
+    adminQaMode: !!v,
+    ...(v ? { levelAccess: 'premium' } : {}),
+  }),
+
   // -- Session ------------------------------------------------------------
   exercises:      [],
   currentIndex:   0,
