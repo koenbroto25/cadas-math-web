@@ -124,9 +124,10 @@ export default function App() {
         if (refToken && rawRef) {
           const ref = JSON.parse(rawRef);
           setReferrerAuth(refToken, ref);
-          // Jika marketing â†’ restore demo mode juga
+          // Jika marketing â†’ restore demo mode juga (auto-exit 30 menit)
           if (ref?.type === 'marketing') {
-            setDemoMode('marketing', ref.full_name || 'Marketing Demo', null);
+            setDemoMode('marketing', ref.full_name || 'Marketing Demo',
+              Date.now() + 30 * 60 * 1000);
           }
         }
 

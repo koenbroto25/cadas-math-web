@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator,
+  ScrollView, Alert, ActivityIndicator, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -127,7 +127,7 @@ export default function DemoHomeScreen({ navigation }) {
     const tick = () => {
       const t = formatTimeLeft(demoExpiresAt);
       setTimeLeft(t);
-      if (t === 'EXPIRED') handleExit();
+      if (t === 'EXPIRED') doExit(); // auto-exit TANPA dialog (expiry bukan keputusan user)
     };
     tick();
     const id = setInterval(tick, 1000);
@@ -151,25 +151,32 @@ export default function DemoHomeScreen({ navigation }) {
     }
   }
 
+  // Eksekusi keluar demo — tanpa dialog (dipakai auto-expiry & konfirmasi manual)
+  function doExit() {
+    clearDemoMode();
+    clearReferrerAuth();
+    clearAuth();
+    AsyncStorage.multiRemove([
+      'referrerToken', 'referrerProfile',
+      'authToken', 'authRole', 'student',
+    ]).catch(() => {});
+    // Kembali ke RoleSelect — App.jsx akan re-route otomatis
+  }
+
+  // Konfirmasi manual keluar.
+  // FIX: Alert.alert tidak diimplementasikan react-native-web (no-op di browser),
+  // sehingga tombol Keluar & auto-exit sebelumnya tidak pernah tereksekusi di WPA.
   function handleExit() {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Keluar dari Mode Demo?')) doExit();
+      return;
+    }
     Alert.alert(
       'Keluar Demo',
       'Yakin ingin keluar dari Mode Demo?',
       [
         { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Keluar', style: 'destructive',
-          onPress: async () => {
-            clearDemoMode();
-            clearReferrerAuth();
-            clearAuth();
-            await AsyncStorage.multiRemove([
-              'referrerToken', 'referrerProfile',
-              'authToken', 'authRole', 'student',
-            ]);
-            // Kembali ke RoleSelect — App.jsx akan re-route otomatis
-          },
-        },
+        { text: 'Keluar', style: 'destructive', onPress: doExit },
       ]
     );
   }

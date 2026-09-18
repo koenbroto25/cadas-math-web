@@ -34,9 +34,10 @@ export default function ReferrerLoginScreen({ navigation }) {
       await AsyncStorage.setItem('referrerProfile', JSON.stringify(data.referrer));
       setReferrerAuth(data.token, data.referrer);
 
-      // Marketing type â†’ aktifkan demo mode permanen (tanpa expiry)
+      // Marketing type â†’ aktifkan demo mode (auto-exit 30 menit)
       if (data.referrer?.type === 'marketing') {
-        setDemoMode('marketing', data.referrer.full_name || 'Marketing Demo', null);
+        setDemoMode('marketing', data.referrer.full_name || 'Marketing Demo',
+          Date.now() + 30 * 60 * 1000);
         navigation.replace('DemoHome');
       } else {
         navigation.replace('ReferrerDashboard');
