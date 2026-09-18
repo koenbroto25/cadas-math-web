@@ -1,6 +1,6 @@
 // src/screens/DemoHomeScreen.jsx
 // Screen utama Demo Mode: level picker 1-15, banner, timer (client), tombol mulai
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Alert, ActivityIndicator,
@@ -10,6 +10,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStore } from '../store/useStore';
 import { api } from '../services/api';
+import { API_BASE } from '../services/api';
+import { usePracticePlayer } from '../utils/createPlayer';
 // api import tidak dipakai di DemoHomeScreen — akses via useStore
 import BotCharacter from '../components/BotCharacter';
 
@@ -48,6 +50,7 @@ export default function DemoHomeScreen({ navigation }) {
   const {
     demoKind, demoLabel, demoExpiresAt,
     demoLevel, setDemoLevel,
+    startSpeaking, stopSpeaking,
     clearDemoMode, clearReferrerAuth, clearAuth,
   } = useStore();
 
@@ -56,6 +59,67 @@ export default function DemoHomeScreen({ navigation }) {
   const [genResult,  setGenResult]  = useState(null);  // { code, label, expires_at }
   const [genError,   setGenError]   = useState(null);
   const levelNames = LEVEL_NAMES;  // static — tidak perlu state
+
+  // ── Welcome audio bot + lip-sync (paritas dengan HomeScreen) ─────────────
+  const player = usePracticePlayer();
+
+  const welcomeKey = useMemo(() => {
+    const lvl = demoLevel || 1;
+    if (lvl <= 3)  return 'bot_welcome_l1_l3';
+    if (lvl <= 7)  return 'bot_welcome_l4_l7';
+    if (lvl <= 12) return 'bot_welcome_l8_l12';
+    return 'bot_welcome_l13_l15';
+  }, [demoLevel]);
+
+  const [welcomeUrl, setWelcomeUrl]   = useState(null);
+  const [visemeData, setVisemeData]   = useState(null);
+  const [visemeReady, setVisemeReady] = useState(false);
+  const didPlayRef = useRef(false);
+  const playedRef  = useRef(false);
+
+  // Fetch URL audio + viseme JSON (sekali per mount)
+  useEffect(() => {
+    if (!welcomeKey || didPlayRef.current) return;
+    didPlayRef.current = true;
+
+    fetch(`${API_BASE}/api/bot-audio/${welcomeKey}`, { redirect: 'follow' })
+      .then(r => { if (r.ok || r.redirected) setWelcomeUrl(r.url); })
+      .catch(err => console.warn('[DemoHomeAudio] url error:', err));
+
+    fetch(`${API_BASE}/api/bot-viseme/${welcomeKey}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setVisemeData(data); })
+      .catch(err => console.warn('[DemoHomeViseme] fetch error:', err))
+      .finally(() => setVisemeReady(true));
+  }, [welcomeKey]);
+
+  // Play sekali — gate visemeReady agar tidak restart audio
+  useEffect(() => {
+    if (!welcomeUrl || !visemeReady || playedRef.current || !player) return;
+    playedRef.current = true;
+
+    player.replace({ uri: welcomeUrl });
+    player.play();
+    startSpeaking(visemeData);
+
+    const sub = player.addListener((status) => {
+      if (status?.didJustFinish || status?.error) {
+        stopSpeaking();
+        sub.remove();
+      }
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [welcomeUrl, visemeReady, player]);
+
+  // Cleanup saat unmount / keluar demo
+  useEffect(() => {
+    return () => {
+      player?.pause();
+      stopSpeaking();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player]);
 
   // ── Timer countdown (hanya untuk client passcode) ─────────────────────
   useEffect(() => {
@@ -146,7 +210,7 @@ export default function DemoHomeScreen({ navigation }) {
           <Text style={st.greeting}>Halo, {demoLabel}! 👋</Text>
           <Text style={st.sub}>Pilih level untuk demo presentasi</Text>
         </View>
-        <BotCharacter size={60} />
+        <BotCharacter size={60} visemeData={visemeData} />
       </View>
 
       {/* Level picker — grid 5x3 */}
