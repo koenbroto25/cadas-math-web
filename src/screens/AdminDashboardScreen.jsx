@@ -49,10 +49,19 @@ export default function AdminDashboardScreen({ navigation }) {
         api.adminReferrers(adminToken).catch(() => null),
         api.adminPayments(adminToken).catch(() => null),
       ]);
+      // Bentuk respons per endpoint berbeda-beda (lihat routes/admin.js):
+      //   students  -> { total, students: [] }
+      //   referrers -> { referrers: [] }
+      //   payments  -> { manual: [], midtrans: [] }
+      const payCount = payments
+        ? (Array.isArray(payments.payments)
+            ? payments.payments.length
+            : (payments.manual?.length ?? 0) + (payments.midtrans?.length ?? 0))
+        : 0;
       setStats({
-        students:  students?.students?.length  ?? students?.total  ?? 0,
+        students:  students?.total ?? students?.students?.length  ?? 0,
         referrers: referrers?.referrers?.length ?? referrers?.total ?? 0,
-        payments:  payments?.payments?.length   ?? payments?.total  ?? 0,
+        payments:  payCount,
       });
     } finally {
       setLoading(false);
