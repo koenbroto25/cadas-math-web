@@ -75,3 +75,11 @@ npm-install.log
 
 
 src/screens/_backup/
+
+# Build archives
+dist-web-auth.tar.gz
+dist*.tar.gz
+
+# Build archives
+dist-web-auth.tar.gz
+dist*.tar.gz
