@@ -43,11 +43,21 @@ const RN_GLOBALS = {
   require: 'readonly',
   module: 'readonly',
   exports: 'writable',
+  window: 'readonly',
+  Audio: 'readonly',
+  useEffect: 'readonly',
+  useState: 'readonly',
+  useRef: 'readonly',
+  useCallback: 'readonly',
+  useMemo: 'readonly',
+  useContext: 'readonly',
+  useReducer: 'readonly',
+  useLayoutEffect: 'readonly',
 };
 
 module.exports = [
   {
-    ignores: ['node_modules/**', '.expo/**', 'web-build/**', 'android/**', 'ios/**'],
+    ignores: ['node_modules/**', '.expo/**', 'web-build/**', 'android/**', 'ios/**', '_backup/**', 'scripts/**', 'check-brackets.js', 'eslint_out.txt'],
   },
   {
     files: ['src/**/*.{js,jsx}'],

@@ -1,13 +1,14 @@
 // src/screens/PlacementResultScreen.jsx
 // Shows placement result, then funnels to parent registration per [ADD] §6.2
 // FIX v2: ganti expo-av -> expo-audio (API berbeda: useAudioPlayer hook)
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAudioPlayer } from 'expo-audio';
+import { usePracticePlayer } from '../utils/createPlayer';
 import { useStore } from '../store/useStore';
 import { api } from '../services/api';
 import BotCharacter from '../components/BotCharacter';
+import PlacementCardModal from './PlacementCardModal';
 
 const C = { bg: '#0A0A12', surface: '#13131F', cyan: '#00F0FF', text: '#FFFFFF', muted: '#888899' };
 
@@ -36,12 +37,13 @@ export default function PlacementResultScreen({ navigation, route }) {
   } = route?.params ?? {};
 
   const { setPlacementDone, setBotState, startSpeaking, stopSpeaking, visemeData } = useStore();
+  const [modalVisible, setModalVisible] = useState(true);
   const insets    = useSafeAreaInsets();
   const accuracy  = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : null;
   const levelName = LEVEL_NAMES[placedLevel] ?? `Level ${placedLevel}`;
 
-  // expo-audio: useAudioPlayer hook — satu player, ganti source saat perlu
-  const player       = useAudioPlayer(null);
+  // usePracticePlayer: satu player, ganti source saat perlu
+  const player       = usePracticePlayer();
   const cancelledRef = useRef(false);
 
   async function playBotAudio(id, hype = false) {
@@ -132,10 +134,17 @@ export default function PlacementResultScreen({ navigation, route }) {
   }
 
   return (
-    <ScrollView
-      style={s.scroll}
-      contentContainerStyle={[s.inner, { paddingTop: insets.top + 24 }]}
-    >
+    <>
+      <PlacementCardModal
+        visible={modalVisible}
+        student={student}
+        placedLevel={placedLevel}
+        onDone={() => setModalVisible(false)}
+      />
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={[s.inner, { paddingTop: insets.top + 24 }]}
+      >
       <View style={s.botCenter}>
         <BotCharacter size={100} visemeData={visemeData} />
       </View>
@@ -182,6 +191,7 @@ export default function PlacementResultScreen({ navigation, route }) {
         <Text style={s.btnGhostText}>Lewati dulu — mulai belajar langsung</Text>
       </TouchableOpacity>
     </ScrollView>
+    </>
   );
 }
 

@@ -110,6 +110,21 @@ export const api = {
   parentChildBilling:  (studentId, token)                 =>
     authFetch(`/api/parent/child/${encodeURIComponent(studentId)}/billing`, {}, token),
 
+  // ── Parent — Auth Baru (new-final-auth.md) ────────────────────────────────
+  // Tambah anak via display_id 4-karakter (B7KM style)
+  parentAddChild: (childId, token) =>
+    authFetch('/api/auth/parent/add-child', {
+      method: 'POST', body: JSON.stringify({ child_id: childId }),
+    }, token),
+  // Gabung akun lama → akun aktif (D3). Body: { source_email, password }
+  parentMergeAccount: (sourceEmail, password, token) =>
+    authFetch('/api/auth/parent/merge-account', {
+      method: 'POST', body: JSON.stringify({ source_email: sourceEmail, password }),
+    }, token),
+  // Daftar anak ter-link (dari /api/auth/parent/children)
+  parentLinkedChildren: (token) =>
+    authFetch('/api/auth/parent/children', {}, token),
+
   // ── Teacher Dashboard (Sprint F) ──────────────────────────────────────────
   teacherMe:       (token)            => authFetch('/api/teacher/me', {}, token),
   teacherStudents: (token)            => authFetch('/api/teacher/students', {}, token),

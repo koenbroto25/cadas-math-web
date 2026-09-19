@@ -1,7 +1,7 @@
 ﻿// src/screens/ReferrerLoginScreen.jsx
 // Patch: marketing type â†’ auto masuk demo mode setelah login
 import React, { useState } from 'react';
-import { Text, TextInput, TouchableOpacity, StyleSheet,
+import { Text, TextInput, TouchableOpacity, StyleSheet, View,
          Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';

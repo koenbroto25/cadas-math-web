@@ -1,10 +1,12 @@
 // src/screens/SettingsScreen.jsx
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, TextInput, ActivityIndicator, Modal, Linking } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStore } from '../store/useStore';
 import { API_BASE } from '../services/api';
+import StudentIdCard from '../components/StudentIdCard';
 
 const C = { bg: '#0A0A12', surface: '#13131F', cyan: '#00F0FF', text: '#FFFFFF', muted: '#888899', error: '#FF4466' };
 
@@ -14,6 +16,7 @@ export default function SettingsScreen() {
   const [teacherCode, setTeacherCode] = React.useState('');
   const [linking, setLinking] = React.useState(false);
   const [linkedTeacher, setLinkedTeacher] = React.useState(null);
+  const [showIdCard, setShowIdCard] = useState(false);
 
   async function handleLinkTeacher() {
     const code = teacherCode.trim().toUpperCase();
@@ -32,6 +35,40 @@ export default function SettingsScreen() {
       Alert.alert('Berhasil!', `Kamu sekarang terhubung ke ${data.teacher?.display_name || 'guru'}.`);
     } catch { Alert.alert('Error', 'Tidak bisa terhubung ke server.'); }
     finally { setLinking(false); }
+  }
+
+  async function handleDownloadPdf() {
+    if (!authToken) return Alert.alert('', 'Anda belum login. Silakan login dulu.');
+    const pdfUrl = `${API_BASE}/api/card/my`;
+    const canOpen = await Linking.canOpenURL(pdfUrl);
+    if (canOpen) {
+      await Linking.openURL(`${pdfUrl}?token=${encodeURIComponent(authToken)}`);
+      Alert.alert('Download PDF', 'Klik tautan di browser untuk menyimpan PDF kartu akun.');
+    } else {
+      Alert.alert('', 'Tidak bisa membuka PDF. Coba share via WA atau copy link.');
+    }
+  }
+
+  async function handleShareWA() {
+    if (!student?.display_id) return Alert.alert('', 'Data kartu belum tersedia.');
+    const waMessage = encodeURIComponent(
+      `Halo! Info akun anak saya di Cadas Matematika: ID ${student.display_id}` +
+      `\nhttps://cadasmatematika.web.id/parent/join?ref=${student.display_id}`
+    );
+    const url = `whatsapp://send?text=${waMessage}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) {
+      await Linking.openURL(url);
+    } else {
+      await Linking.openURL(`https://wa.me/?text=${waMessage}`);
+    }
+  }
+
+  async function handleCopyLink() {
+    if (!student?.display_id) return;
+    const link = `${API_BASE}/parent/join?ref=${student.display_id}`;
+    await Clipboard.setStringAsync(link);
+    Alert.alert('Tersalin', 'Link join sudah tersalin ke clipboard.');
   }
 
   async function handleLogout() {
@@ -58,8 +95,26 @@ export default function SettingsScreen() {
       <View style={s.card}>
         <Text style={s.cardLabel}>Akun Siswa</Text>
         <Text style={s.cardValue}>{student?.name || '—'}</Text>
-        <Text style={s.cardSub}>Kelas {student?.kelas || '—'} · ID: {student?.id?.slice(0, 8) || '—'}...</Text>
+        <Text style={s.cardSub}>Kelas {student?.kelas || '—'} · ID: {student?.display_id || '—'}</Text>
       </View>
+
+      <TouchableOpacity style={s.idCardBtn} onPress={() => setShowIdCard(true)}>
+        <Text style={s.idCardBtnText}>🎓 Kartu Identitas Cadas</Text>
+      </TouchableOpacity>
+
+      <Modal visible={showIdCard} animationType="slide" transparent={false}>
+        <View style={s.modalContainer}>
+          <StudentIdCard
+            student={{...student, current_level: student?.current_level || student?.trial_level || 1}}
+            onShareWA={handleShareWA}
+            onDownloadPdf={handleDownloadPdf}
+            onCopyLink={handleCopyLink}
+          />
+          <TouchableOpacity style={s.closeBtn} onPress={() => setShowIdCard(false)}>
+            <Text style={s.closeBtnText}>Tutup</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       <View style={s.card}>
         <Text style={s.cardLabel}>Level Saat Ini</Text>
@@ -119,7 +174,11 @@ const s = StyleSheet.create({
   linkBtn:      { backgroundColor: C.cyan, borderRadius: 10, paddingVertical: 12,
                   alignItems: 'center', marginTop: 10 },
   linkBtnText:  { color: C.bg, fontSize: 14, fontWeight: 'bold' },
-  cardSub:      { color: C.muted, fontSize: 12 },
+  idCardBtn:     { backgroundColor: C.surface, borderRadius: 16, padding: 20, marginBottom: 14, borderWidth: 1, borderColor: C.cyan + '44' },
+  idCardBtnText: { color: C.cyan, fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
+  modalContainer:{ flex: 1, backgroundColor: C.bg, padding: 24, justifyContent: 'center' },
+  closeBtn:      { marginTop: 24, padding: 16, alignItems: 'center' },
+  closeBtnText:  { color: C.muted, fontSize: 16 },
   section:      { marginTop: 16, marginBottom: 24 },
   sectionTitle: { color: C.muted, fontSize: 12, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
   infoText:     { color: C.muted, fontSize: 14, marginBottom: 6 },

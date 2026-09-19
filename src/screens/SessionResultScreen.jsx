@@ -7,7 +7,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAudioPlayer } from 'expo-audio';
+import { usePracticePlayer } from '../utils/createPlayer';
 import { useStore } from '../store/useStore';
 import { api } from '../services/api';
 import BotCharacter from '../components/BotCharacter';
@@ -49,8 +49,8 @@ export default function SessionResultScreen({ navigation, route }) {
   const { setBotState, startSpeaking, stopSpeaking } = store;
   const cancelledRef = useRef(false);
 
-  // expo-audio: single player instance
-  const player = useAudioPlayer(null);
+  // usePracticePlayer: single player instance
+  const player = usePracticePlayer();
 
   async function playBotAudio(id, hype = false) {
     try {

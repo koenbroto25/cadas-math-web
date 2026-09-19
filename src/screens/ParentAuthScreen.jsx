@@ -1,7 +1,7 @@
 // src/screens/ParentAuthScreen.jsx
 // Register/login orang tua + auto-link ke student setelah placement
 // Flow: RoleSelect -> ParentAuth -> ParentDashboard (via isParent di App.jsx)
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet,
          Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ const C = { bg:'#0A0A12', surface:'#13131F', cyan:'#00F0FF', text:'#FFFFFF', mut
 
 export default function ParentAuthScreen({ navigation, route }) {
   const student          = route?.params?.student;
+  const refCode           = route?.params?.ref;   // deep-link ?ref=XXXX
   const { setParentAuth } = useStore();
   const insets           = useSafeAreaInsets();
   const [mode,     setMode]     = useState('register');
@@ -20,11 +21,18 @@ export default function ParentAuthScreen({ navigation, route }) {
   const [email,    setEmail]    = useState('');
   const [phone,    setPhone]    = useState('');
   const [password, setPassword] = useState('');
+  const [childId,  setChildId]  = useState('');
   const [loading,  setLoading]  = useState(false);
+
+  // Jika datang dari deep-link ?ref=..., isi childId otomatis
+  useEffect(() => {
+    if (refCode && !childId) setChildId(refCode);
+  }, [refCode]);
 
   async function handleRegister() {
     if (name.trim().length < 2)      return Alert.alert('', 'Nama minimal 2 huruf.');
     if (!email.trim().includes('@'))  return Alert.alert('', 'Email tidak valid.');
+    if (!phone.trim())               return Alert.alert('', 'Nomor HP wajib diisi.');
     if (password.length < 6)         return Alert.alert('', 'Password minimal 6 karakter.');
     setLoading(true);
     try {
@@ -33,12 +41,13 @@ export default function ParentAuthScreen({ navigation, route }) {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           name: name.trim(), email: email.trim(),
-          phone: phone.trim() || undefined, password,
+          phone: phone.trim(), password,
+          child_id: childId.trim() || undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) return Alert.alert('Gagal', data.error || 'Coba lagi.');
-      await finalize(data.token, data.parent ?? { id: data.parent_id, display_name: name.trim() });
+      await finalize(data.token, data.parent ?? { id: data.parent_id, display_name: name.trim() }, data.linked_children);
     } catch { Alert.alert('Error', 'Tidak bisa terhubung ke server.'); }
     finally  { setLoading(false); }
   }
@@ -55,24 +64,33 @@ export default function ParentAuthScreen({ navigation, route }) {
       });
       const data = await res.json();
       if (!res.ok) return Alert.alert('Gagal', data.error || 'Email atau password salah.');
-      await finalize(data.token, data.parent ?? { id: data.parent_id });
+      await finalize(data.token, data.parent ?? { id: data.parent_id }, data.linked_children);
     } catch { Alert.alert('Error', 'Tidak bisa terhubung ke server.'); }
     finally  { setLoading(false); }
   }
 
-  async function finalize(token, parent) {
+  async function finalize(token, parent, linkedChildren = null) {
     // Persist ke AsyncStorage
     await AsyncStorage.setItem('parentToken', token);
     await AsyncStorage.setItem('parent', JSON.stringify(parent));
+    if (linkedChildren) {
+      await AsyncStorage.setItem('parentLinkedChildren', JSON.stringify(linkedChildren));
+    }
 
     // Link child jika flow datang dari PlacementResult (non-fatal)
-    if (student?.id && token) {
+    if (student?.display_id && token) {
       try {
-        await fetch(`${API_BASE}/api/auth/parent/link-child`, {
+        const r = await fetch(`${API_BASE}/api/auth/parent/add-child`, {
           method:  'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body:    JSON.stringify({ student_id: student.id }),
+          body:    JSON.stringify({ child_id: student.display_id }),
         });
+        if (r.ok) {
+          const data = await r.json();
+          if (data.linked_children) {
+            await AsyncStorage.setItem('parentLinkedChildren', JSON.stringify(data.linked_children));
+          }
+        }
       } catch { /* non-fatal */ }
     }
 
@@ -108,9 +126,18 @@ export default function ParentAuthScreen({ navigation, route }) {
           <Text style={s.label}>Nama Lengkap</Text>
           <TextInput style={s.input} value={name} onChangeText={setName}
             placeholder="Nama orang tua" placeholderTextColor={C.muted} autoCapitalize="words" />
-          <Text style={s.label}>Nomor HP (opsional)</Text>
+          <Text style={s.label}>Nomor HP (wajib)</Text>
           <TextInput style={s.input} value={phone} onChangeText={setPhone}
             placeholder="08xxxxxxxxxx" placeholderTextColor={C.muted} keyboardType="phone-pad" />
+          <Text style={s.label}>ID Anak (opsional — isi jika ada)</Text>
+          <TextInput style={[s.input, childId.length > 0 && s.inputFilled]}
+            value={childId} onChangeText={setChildId}
+            placeholder={refCode ? `Terisi dari tautan: ${refCode}` : 'Contoh: B7KM'}
+            placeholderTextColor={C.muted} autoCapitalize="characters"
+            editable={!refCode} />
+          {refCode && (
+            <Text style={s.hint}>ID anak terisi otomatis dari tautan.Ubah hanya jika perlu.</Text>
+          )}
         </>
       )}
 

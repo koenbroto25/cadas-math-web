@@ -1,7 +1,8 @@
 // src/screens/ParentDashboardScreen.jsx - Sprint E.4 + Sprint I (payment notification)
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet,
-         ActivityIndicator, Alert, RefreshControl } from 'react-native';
+         ActivityIndicator, Alert, RefreshControl, Modal,
+         TextInput, ScrollView } from 'react-native';
 import { useStore } from '../store/useStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -37,6 +38,13 @@ export default function ParentDashboardScreen({ navigation }) {
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [parentName, setParentName] = useState('');
+  // ── Auth Baru: Tambah Anak + Merge Akun ────────────────────────────────────
+  const [showAdd,     setShowAdd]     = useState(false);
+  const [newChildId,  setNewChildId]  = useState('');
+  const [showMerge,   setShowMerge]   = useState(false);
+  const [mergeEmail,  setMergeEmail]  = useState('');
+  const [mergePass,   setMergePass]   = useState('');
+  const [busy,        setBusy]        = useState(false);
 
   async function load(isRefresh = false) {
     isRefresh ? setRefreshing(true) : setLoading(true);
@@ -62,8 +70,52 @@ export default function ParentDashboardScreen({ navigation }) {
   useEffect(() => { load(); }, []);
 
   async function handleLogout() {
-    await AsyncStorage.multiRemove(['parentToken','parent']);
+    await AsyncStorage.multiRemove(['parentToken','parent','parentLinkedChildren']);
     clearParentAuth();
+  }
+
+  // ── Tambah Anak (add-child via display_id) ────────────────────────────────
+  async function handleAddChild() {
+    const did = newChildId.trim().toUpperCase();
+    if (did.length !== 4) return Alert.alert('', 'ID anak 4 karakter, contoh: B7KM.');
+    setBusy(true);
+    try {
+      const token = await AsyncStorage.getItem('parentToken');
+      const res  = await fetch(`${API_BASE}/api/auth/parent/add-child`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ child_id: did }),
+      });
+      const data = await res.json();
+      if (!res.ok) return Alert.alert('Gagal', data.error || 'Coba lagi.');
+      setShowAdd(false); setNewChildId('');
+      await AsyncStorage.setItem('parentLinkedChildren', JSON.stringify(data.linked_children || []));
+      await load(true);
+      Alert.alert('Berhasil', 'Anak berhasil terhubung ke akun Anda.');
+    } catch { Alert.alert('Error', 'Tidak bisa terhubung ke server.'); }
+    finally { setBusy(false); }
+  }
+
+  // ── Gabung Akun Lama (merge-account, D3) ──────────────────────────────────
+  async function handleMergeAccount() {
+    if (!mergeEmail.trim().includes('@')) return Alert.alert('', 'Email akun lama tidak valid.');
+    if (!mergePass)                       return Alert.alert('', 'Masukkan password akun lama.');
+    setBusy(true);
+    try {
+      const token = await AsyncStorage.getItem('parentToken');
+      const res  = await fetch(`${API_BASE}/api/auth/parent/merge-account`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ source_email: mergeEmail.trim(), password: mergePass }),
+      });
+      const data = await res.json();
+      if (!res.ok) return Alert.alert('Gagal', data.error || 'Coba lagi.');
+      setShowMerge(false); setMergeEmail(''); setMergePass('');
+      await AsyncStorage.setItem('parentLinkedChildren', JSON.stringify(data.linked_children || []));
+      await load(true);
+      Alert.alert('Berhasil', 'Semua anak dari akun lama sudah dipindah ke akun ini.');
+    } catch { Alert.alert('Error', 'Tidak bisa terhubung ke server.'); }
+    finally { setBusy(false); }
   }
 
   const fmtDate = (d) => d
@@ -151,9 +203,14 @@ export default function ParentDashboardScreen({ navigation }) {
           <Text style={s.greeting}>Halo, {parentName.split(' ')[0] || 'Orang Tua'} 👋</Text>
           <Text style={s.sub}>{children.length} anak terdaftar</Text>
         </View>
-        <TouchableOpacity onPress={handleLogout}>
-          <Text style={s.logout}>Keluar</Text>
-        </TouchableOpacity>
+        <View style={{ alignItems: 'flex-end' }}>
+          <TouchableOpacity style={s.addBtn} onPress={() => setShowAdd(true)}>
+            <Text style={s.addBtnText}>+ Tambah Anak</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout}>
+            <Text style={s.logout}>Keluar</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Banner summary jika ada anak yang perlu bayar */}
@@ -179,14 +236,77 @@ export default function ParentDashboardScreen({ navigation }) {
                 tintColor={C.cyan}
               />
             }
+            ListFooterComponent={
+              children.length > 0 ? (
+                <TouchableOpacity style={s.mergeLink} onPress={() => setShowMerge(true)}>
+                  <Text style={s.mergeLinkText}>Punya akun lama? Gabungkan di sini</Text>
+                </TouchableOpacity>
+              ) : null
+            }
             ListEmptyComponent={
               <View style={s.empty}>
                 <Text style={s.emptyText}>Belum ada anak yang terhubung.</Text>
-                <Text style={s.emptyHint}>Daftarkan anak melalui aplikasi anak.</Text>
+                <TouchableOpacity style={s.emptyAddBtn} onPress={() => setShowAdd(true)}>
+                  <Text style={s.addBtnText}>+ Hubungkan Anak Pertama</Text>
+                </TouchableOpacity>
+                <Text style={s.emptyHint}>Masukkan ID anak dari kartu identitasnya.</Text>
               </View>
             }
           />
       }
+
+      {/* ── Modal Tambah Anak ──────────────────────────────────────────────── */}
+      <Modal visible={showAdd} animationType="slide" transparent>
+        <View style={s.overlay}>
+          <ScrollView style={s.sheet} contentContainerStyle={{ padding: 24 }}>
+            <Text style={s.sheetTitle}>Hubungkan Anak</Text>
+            <Text style={s.sheetHint}>
+              Masukkan ID 4 karakter dari kartu identitas anak (contoh: B7KM).
+              ID-nya juga ada di PDF yang dibagikan setelah tes penempatan.
+            </Text>
+            <TextInput
+              style={[s.input, { textAlign:'center', fontSize:22, letterSpacing:6 }]}
+              value={newChildId}
+              onChangeText={(v) => setNewChildId(v.toUpperCase())}
+              placeholder="B7KM" placeholderTextColor={C.muted}
+              maxLength={4} autoCapitalize="characters" />
+            <TouchableOpacity style={[s.primaryBtn, busy && s.btnDisabled]}
+              onPress={handleAddChild} disabled={busy}>
+              <Text style={s.primaryBtnText}>{busy ? 'Menghubungkan…' : 'Hubungkan'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowAdd(false)} style={s.cancelBtn}>
+              <Text style={s.cancelText}>Batal</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* ── Modal Gabung Akun Lama (D3) ────────────────────────────────────── */}
+      <Modal visible={showMerge} animationType="slide" transparent>
+        <View style={s.overlay}>
+          <ScrollView style={s.sheet} contentContainerStyle={{ padding: 24 }}>
+            <Text style={s.sheetTitle}>Gabung Akun Lama</Text>
+            <Text style={s.sheetHint}>
+              Punya dua akun orang tua? Masukkan email &amp; password akun LAMA.
+              Semua anak dari akun itu akan dipindah ke akun ini.
+            </Text>
+            <Text style={s.label}>Email akun lama</Text>
+            <TextInput style={s.input} value={mergeEmail} onChangeText={setMergeEmail}
+              placeholder="email@contoh.com" placeholderTextColor={C.muted}
+              keyboardType="email-address" autoCapitalize="none" />
+            <Text style={s.label}>Password akun lama</Text>
+            <TextInput style={s.input} value={mergePass} onChangeText={setMergePass}
+              placeholder="Password" placeholderTextColor={C.muted} secureTextEntry />
+            <TouchableOpacity style={[s.primaryBtn, busy && s.btnDisabled]}
+              onPress={handleMergeAccount} disabled={busy}>
+              <Text style={s.primaryBtnText}>{busy ? 'Memproses…' : 'Gabungkan Akun'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowMerge(false)} style={s.cancelBtn}>
+              <Text style={s.cancelText}>Batal</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -248,4 +368,28 @@ const s = StyleSheet.create({
   empty:            { alignItems:'center', marginTop:80 },
   emptyText:        { color:C.muted, fontSize:16, marginBottom:8 },
   emptyHint:        { color:C.muted + '88', fontSize:13 },
+
+  // ── Auth Baru: Tambah Anak + Merge Akun ──────────────────────────────────
+  addBtn:           { backgroundColor:C.cyan + '22', borderWidth:1, borderColor:C.cyan,
+                      borderRadius:20, paddingHorizontal:12, paddingVertical:5,
+                      marginBottom:6 },
+  addBtnText:       { color:C.cyan, fontSize:12, fontWeight:'bold' },
+  emptyAddBtn:      { backgroundColor:C.cyan + '22', borderWidth:1, borderColor:C.cyan,
+                      borderRadius:12, paddingHorizontal:16, paddingVertical:10, marginBottom:10 },
+  mergeLink:        { alignItems:'center', paddingVertical:14 },
+  mergeLinkText:    { color:C.muted, fontSize:13, textDecorationLine:'underline' },
+  overlay:          { flex:1, backgroundColor:'#000000AA', justifyContent:'flex-end' },
+  sheet:            { backgroundColor:C.bg, borderTopLeftRadius:24,
+                      borderTopRightRadius:24, maxHeight:'85%' },
+  sheetTitle:       { color:C.text, fontSize:20, fontWeight:'bold', marginBottom:8 },
+  sheetHint:        { color:C.muted, fontSize:13, lineHeight:19, marginBottom:16 },
+  label:            { color:C.muted, fontSize:12, marginBottom:6, marginTop:10 },
+  input:            { backgroundColor:C.surface, borderRadius:12, padding:14,
+                      color:C.text, fontSize:16, borderWidth:1, borderColor:'#ffffff22' },
+  primaryBtn:       { backgroundColor:C.cyan, borderRadius:14, paddingVertical:16,
+                      alignItems:'center', marginTop:20 },
+  primaryBtnText:   { color:C.bg, fontSize:15, fontWeight:'bold' },
+  btnDisabled:      { opacity:0.5 },
+  cancelBtn:        { alignItems:'center', paddingVertical:16 },
+  cancelText:       { color:C.muted, fontSize:14 },
 });

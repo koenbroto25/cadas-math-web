@@ -17,7 +17,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useAudioPlayer } from 'expo-audio';
+import { usePracticePlayer } from '../utils/createPlayer';
 import { useStore } from '../store/useStore';
 import BotCharacter from '../components/BotCharacter';
 import { api, API_BASE } from '../services/api';
@@ -43,8 +43,8 @@ export default function AskKakScreen({ navigation }) {
   const scrollRef    = useRef(null);
   const cancelledRef = useRef(false);
 
-  // expo-audio: single player instance, replace source saat ganti audio
-  const player = useAudioPlayer(null);
+  // usePracticePlayer: single player instance, replace source saat ganti audio
+  const player = usePracticePlayer();
 
   const isPremium = levelAccess === 'premium';
 

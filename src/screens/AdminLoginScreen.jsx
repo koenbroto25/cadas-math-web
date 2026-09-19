@@ -2,6 +2,7 @@
 // Login ADMIN (owner/developer) — bukan demo, bukan passcode.
 // Token dari /api/auth/admin/login (role admin, TTL 8 jam) memberi full access
 // semua level 1-15 + fitur premium untuk keperluan QA.
+/* global window */
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet,
          ActivityIndicator, ScrollView, Platform, Alert } from 'react-native';

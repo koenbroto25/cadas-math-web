@@ -14,7 +14,7 @@ import {
   Alert, StyleSheet, ScrollView,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { useAudioPlayer } from 'expo-audio';
+import { usePracticePlayer } from '../utils/createPlayer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
 import { api, BASE_URL } from '../services/api';
@@ -56,10 +56,10 @@ export default function FastTrackScreen() {
   const isMountedRef = useRef(true);
   const cancelledRef = useRef(false);
 
-  // expo-audio: player terpisah per channel (cadas-sounds.md Bagian 3) —
+  // usePracticePlayer: player terpisah per channel (cadas-sounds.md Bagian 3) —
   // channel bot dan channel SFX tidak boleh berebut satu player.
-  const player     = useAudioPlayer(null);
-  const sfxPlayer  = useAudioPlayer(null);
+  const player     = usePracticePlayer();
+  const sfxPlayer  = usePracticePlayer();
   const botBusyRef = useRef(false);   // true = Kak Cadas sedang bicara (SFX ditahan)
 
   useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
