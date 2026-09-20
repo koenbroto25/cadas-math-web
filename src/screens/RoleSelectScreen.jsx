@@ -1,12 +1,22 @@
-﻿// src/screens/RoleSelectScreen.jsx — Redesign v3 (glow logo)
-import React, { useState, useRef } from 'react';
+// src/screens/RoleSelectScreen.jsx — Redesign v3 + Bot Welcome
+// FIX v5:
+//   - Audio di-prefetch saat mount, play setelah interaksi user (bypass autoplay policy)
+//   - Bot animasi pakai CSS/JS bukan Animated API (tidak ada useNativeDriver error)
+//   - BGM + bot welcome + viseme muncul sebelum login
+//   - Tap tombol apapun = trigger audio pertama
+
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Modal, TextInput, Alert, ActivityIndicator, StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
-import { API_BASE } from '../services/api';
+import { api, API_BASE } from '../services/api';
+import BotCharacter from '../components/BotCharacter';
+import { usePracticePlayer } from '../utils/createPlayer';
+import { useGameAudio } from '../hooks/useGameAudio';
+import { BGM } from '../audio/audioCatalog';
 
 const C = {
   bg:      '#0A0A12',
@@ -68,15 +78,79 @@ const logo = StyleSheet.create({
 
 export default function RoleSelectScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { setDemoMode } = useStore();
+  const {
+    setDemoMode, setBotState, startSpeaking, stopSpeaking, visemeData,
+  } = useStore();
 
-  const tapCount = useRef(0);
-  const tapTimer = useRef(null);
+  const tapCount    = useRef(0);
+  const tapTimer    = useRef(null);
+  const cancelRef   = useRef(false);
+  const didPlayRef  = useRef(false);
+  const audioUrlRef = useRef(null);
+  const visemeRef   = useRef(null);
+  const audioReady  = useRef(false);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [passcode,     setPasscode]     = useState('');
   const [loading,      setLoading]      = useState(false);
 
+  const player = usePracticePlayer();
+  const { startBgm, stopBgm } = useGameAudio();
+
+  // Mount: prefetch audio URL + viseme JSON (tidak play dulu)
+  useEffect(() => {
+    cancelRef.current = false;
+
+    const audioKey = 'bot_welcome_l1_l3';
+    (async () => {
+      try {
+        // Prefetch viseme
+        const vRes = await fetch(api.botVisemeUrl(audioKey));
+        if (vRes.ok) visemeRef.current = await vRes.json();
+        // Simpan URL audio (tidak play sebelum interaksi)
+        audioUrlRef.current = api.botAudioUrl(audioKey);
+        audioReady.current  = true;
+        // Setelah prefetch selesai, set bot ke idle (sudah kelihatan)
+        if (!cancelRef.current) setBotState('idle');
+      } catch (_) {
+        if (!cancelRef.current) setBotState('idle');
+      }
+    })();
+
+    return () => {
+      cancelRef.current = true;
+      try { player.pause(); } catch (_) {}
+      stopSpeaking();
+      stopBgm();
+    };
+  }, []);
+
+  // Dipanggil tepat saat user tap pertama — bypass autoplay policy browser
+  function triggerAudio() {
+    if (didPlayRef.current || !audioReady.current) return;
+    didPlayRef.current = true;
+    try {
+      // BGM lirih
+      startBgm(BGM.ZONE_A[0], { fadeIn: true });
+      // Bot speaking
+      setBotState('speaking_calm');
+      startSpeaking(visemeRef.current, false);
+      player.replace({ uri: audioUrlRef.current });
+      player.play();
+      // Reset setelah ~6 detik
+      setTimeout(() => {
+        if (cancelRef.current) return;
+        stopSpeaking();
+        setBotState('idle');
+      }, 6000);
+    } catch (err) {
+      console.warn('[RoleSelect:triggerAudio]', err?.message);
+      setBotState('idle');
+    }
+  }
+
   function handleLogoTap() {
+    triggerAudio();
     tapCount.current += 1;
     clearTimeout(tapTimer.current);
     tapTimer.current = setTimeout(() => { tapCount.current = 0; }, 2000);
@@ -111,32 +185,36 @@ export default function RoleSelectScreen({ navigation }) {
   }
 
   return (
-    <View style={[s.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
+    <View style={[s.container, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }]}>
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
-      {/* Logo */}
+      {/* Logo — tap untuk trigger audio + secret 7x untuk demo */}
       <TouchableOpacity onPress={handleLogoTap} activeOpacity={1} style={s.logoWrap}>
         <CadasLogo />
       </TouchableOpacity>
 
-      {/* Tagline */}
-      <Text style={s.tagline}>Latihan cepat, naik level nyata.</Text>
+      {/* Bot — muncul langsung, gerak setelah user tap */}
+      <View style={s.botWrap}>
+        <BotCharacter size={120} visemeData={visemeData} />
+        <Text style={s.tagline}>Latihan cepat, naik level nyata.</Text>
+        <Text style={s.tapHint}>👆 Tap untuk menyapa Kak Cadas!</Text>
+      </View>
 
       <View style={s.spacer} />
 
-      {/* CTA utama */}
+      {/* CTA utama — tap = trigger audio juga */}
       <View style={s.btnGroup}>
         <TouchableOpacity
           style={s.btnPrimary}
           activeOpacity={0.85}
-          onPress={() => navigation.navigate('StudentRegister')}>
+          onPress={() => { triggerAudio(); navigation.navigate('StudentRegister'); }}>
           <Text style={s.btnPrimaryText}>Daftar Akun Anak Baru</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={s.btnSecondary}
           activeOpacity={0.85}
-          onPress={() => navigation.navigate('StudentRegister', { mode: 'login' })}>
+          onPress={() => { triggerAudio(); navigation.navigate('StudentRegister', { mode: 'login' }); }}>
           <Text style={s.btnSecondaryText}>Masuk — Anak Sudah Punya Akun</Text>
         </TouchableOpacity>
       </View>
@@ -150,28 +228,28 @@ export default function RoleSelectScreen({ navigation }) {
 
       {/* Portal ghost buttons */}
       <View style={s.ghostGroup}>
-        <TouchableOpacity style={s.ghostBtn} onPress={() => navigation.navigate('ParentAuth')}>
+        <TouchableOpacity style={s.ghostBtn} onPress={() => { triggerAudio(); navigation.navigate('ParentAuth'); }}>
           <Text style={s.ghostIcon}>👨‍👩‍👧</Text>
           <Text style={s.ghostText}>Orang Tua</Text>
         </TouchableOpacity>
         <View style={s.ghostDivider} />
-        <TouchableOpacity style={s.ghostBtn} onPress={() => navigation.navigate('ReferrerLogin')}>
+        <TouchableOpacity style={s.ghostBtn} onPress={() => { triggerAudio(); navigation.navigate('ReferrerLogin'); }}>
           <Text style={s.ghostIcon}>🏫</Text>
           <Text style={s.ghostText}>Referrer</Text>
         </TouchableOpacity>
         <View style={s.ghostDivider} />
-        <TouchableOpacity style={s.ghostBtn} onPress={() => navigation.navigate('TeacherAuth')}>
+        <TouchableOpacity style={s.ghostBtn} onPress={() => { triggerAudio(); navigation.navigate('TeacherAuth'); }}>
           <Text style={s.ghostIcon}>👨‍🏫</Text>
           <Text style={s.ghostText}>Guru</Text>
         </TouchableOpacity>
         <View style={s.ghostDivider} />
-        <TouchableOpacity style={s.ghostBtn} onPress={() => navigation.navigate('AdminLogin')}>
+        <TouchableOpacity style={s.ghostBtn} onPress={() => { triggerAudio(); navigation.navigate('AdminLogin'); }}>
           <Text style={s.ghostIcon}>🛠️</Text>
           <Text style={s.ghostText}>Admin</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Modal passcode */}
+      {/* Modal passcode demo */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={m.overlay}>
           <View style={m.card}>
@@ -207,10 +285,12 @@ export default function RoleSelectScreen({ navigation }) {
 
 const s = StyleSheet.create({
   container:       { flex: 1, backgroundColor: C.bg, paddingHorizontal: 24 },
-  logoWrap:        { alignItems: 'center', marginTop: 24 },
-  tagline:         { color: C.muted, fontSize: 14, textAlign: 'center', marginTop: 12, letterSpacing: 0.5 },
+  logoWrap:        { alignItems: 'center', marginTop: 16 },
+  botWrap:         { alignItems: 'center', marginTop: 4, marginBottom: 4 },
+  tagline:         { color: C.muted, fontSize: 14, textAlign: 'center', marginTop: 8, letterSpacing: 0.5 },
+  tapHint:         { color: C.cyan + '88', fontSize: 12, textAlign: 'center', marginTop: 4 },
   spacer:          { flex: 1 },
-  btnGroup:        { gap: 12, marginBottom: 32 },
+  btnGroup:        { gap: 12, marginBottom: 28 },
   btnPrimary:      { backgroundColor: C.cyan, borderRadius: 18, paddingVertical: 20, alignItems: 'center' },
   btnPrimaryText:  { color: C.bg, fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
   btnSecondary:    { backgroundColor: C.surface, borderRadius: 18, paddingVertical: 20, alignItems: 'center', borderWidth: 1.5, borderColor: C.cyan + '55' },
@@ -235,4 +315,3 @@ const m = StyleSheet.create({
   btnText: { color: C.bg, fontSize: 16, fontWeight: 'bold' },
   cancel:  { color: C.muted, fontSize: 14, paddingVertical: 8 },
 });
-

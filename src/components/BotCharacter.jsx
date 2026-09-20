@@ -78,6 +78,10 @@ export default function BotCharacter({
   visemeData = null,
   showCompanion = false,
 }) {
+  // Fallback: jika prop visemeData tidak di-pass (null/undefined),
+  // ambil dari store agar lip-sync tetap jalan (anti-silent viseme).
+  const storeViseme = useStore((s) => s.visemeData);
+  const effectiveViseme = visemeData ?? storeViseme;
   const botState       = useStore((s) => s.botState);
   const streak         = useStore((s) => s.streak);
   const companionLevel = useStore((s) => s.companionLevel);
@@ -205,9 +209,9 @@ export default function BotCharacter({
       return;
     }
 
-    if (visemeData?.mouthCues?.length > 0) {
+    if ((effectiveViseme?.mouthCues?.length > 0) || (effectiveViseme?.cues?.length > 0)) {
       // Data Rhubarb / pcmToVisemes tersedia — sinkron per timestamp
-      const cues      = visemeData.mouthCues;
+      const cues      = effectiveViseme.mouthCues || effectiveViseme.cues;
       const startTime = Date.now();
       const tick = () => {
         const elapsed = (Date.now() - startTime) / 1000;
@@ -227,7 +231,7 @@ export default function BotCharacter({
     return () => {
       if (visemeTimerRef.current) clearInterval(visemeTimerRef.current);
     };
-  }, [isSpeaking, visemeData]);
+  }, [isSpeaking, effectiveViseme]);
 
   // ── Companion badge (gamification) ──────────────────────────────────────────
   const companionBadge = useMemo(() => {

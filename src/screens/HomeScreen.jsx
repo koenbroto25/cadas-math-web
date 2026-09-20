@@ -1,16 +1,21 @@
 // src/screens/HomeScreen.jsx — Redesign v3 (glow logo)
-// Fix: duplikat konten dihapus, bot welcome audio dipulihkan
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+// FIX v4:
+//   - Ganti useAudioPlayer (expo-audio, native-only) → usePracticePlayer (cross-platform)
+//   - Fix fetch endpoint: bot-audio untuk audio, bot-viseme untuk JSON viseme (terpisah)
+//   - Pass visemeData ke BotCharacter + subscribe dari store
+//   - startSpeaking()/stopSpeaking() dipanggil dengan benar
+
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePracticePlayer } from '../utils/createPlayer';
 import { useStore } from '../store/useStore';
-import { API_BASE } from '../services/api';
+import { api, API_BASE } from '../services/api';
 import BotCharacter from '../components/BotCharacter';
+import { usePracticePlayer } from '../utils/createPlayer';
 
 const C = {
   bg:      '#0A0A12',
@@ -112,14 +117,12 @@ export default function HomeScreen({ navigation }) {
     setBotState,
     startSpeaking,
     stopSpeaking,
+    visemeData,
   } = useStore();
 
   const [levelName, setLevelName] = useState('');
-  const [welcomeUrl, setWelcomeUrl] = useState(null);
-  const [visemeData, setVisemeData] = useState(null);
-  const [visemeReady, setVisemeReady] = useState(false);
-  const didPlayRef = useRef(false);
-  const playedRef = useRef(false);
+  const didPlayRef  = useRef(false);
+  const cancelRef   = useRef(false);
 
   const confidence     = getConfidenceScore();
   const fastTrackReady = confidence > 0.85;
@@ -128,7 +131,7 @@ export default function HomeScreen({ navigation }) {
   const pct            = Math.round(confidence * 100);
   const displayName    = storeStudent?.display_name || storeStudent?.name || 'Cadas';
 
-  // ── Audio player ───────────────────────────────────────────────────────────
+  // ── Cross-platform audio player (web: HTMLAudioElement, native: expo-audio) ──
   const player = usePracticePlayer();
 
   // ── Fetch level info ───────────────────────────────────────────────────────
@@ -148,65 +151,61 @@ export default function HomeScreen({ navigation }) {
       .catch(() => {});
   }, [currentLevel, storeStudent?.id]);
 
-  // ── Fetch & play bot welcome audio ────────────────────────────────────────
-  // Key welcome bergantung level — sesuai aset bot speech yang tersedia:
-  //   bot_welcome_l1_l3 | l4_l7 | l8_l12 | l13_l15
-  const welcomeKey = useMemo(() => {
-    if (!currentLevel) return null;
-    if (currentLevel <= 3)  return 'bot_welcome_l1_l3';
-    if (currentLevel <= 7)  return 'bot_welcome_l4_l7';
-    if (currentLevel <= 12) return 'bot_welcome_l8_l12';
-    return 'bot_welcome_l13_l15';
-  }, [currentLevel]);
-
+  // ── Play bot welcome audio (sekali per mount) ──────────────────────────────
   useEffect(() => {
-    if (!welcomeKey || didPlayRef.current) return;
+    cancelRef.current = false;
+
+    if (didPlayRef.current) return;
     didPlayRef.current = true;
 
-    // 1. URL Audio (untuk player)
-    fetch(`${API_BASE}/api/bot-audio/${welcomeKey}`, { redirect: 'follow' })
-      .then(r => {
-        if (r.ok || r.redirected) setWelcomeUrl(r.url);
-      })
-      .catch(err => console.warn('[HomeAudio] url error:', err));
+    // Pilih welcome audio berdasarkan level (sesuai file yang ada di VM)
+    // Gunakan level 1 sebagai fallback jika currentLevel belum tersedia
+    const lvl = currentLevel ?? 1;
+    const audioKey = lvl <= 3  ? 'bot_welcome_l1_l3'
+                   : lvl <= 7  ? 'bot_welcome_l4_l7'
+                   : lvl <= 12 ? 'bot_welcome_l8_l12'
+                   : 'bot_welcome_l13_l15';
 
-    // 2. Konten Viseme (JSON) — siapkan sebelum play agar tidak restart audio
-    fetch(`${API_BASE}/api/bot-viseme/${welcomeKey}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setVisemeData(data); })
-      .catch(err => console.warn('[HomeViseme] fetch error:', err))
-      .finally(() => setVisemeReady(true));
-  }, [welcomeKey]);
+    (async () => {
+      try {
+        // 1. Fetch viseme JSON dulu (untuk lip-sync)
+        let vData = null;
+        try {
+          const vRes = await fetch(api.botVisemeUrl(audioKey));
+          if (vRes.ok) vData = await vRes.json();
+        } catch (_) {}
 
-  // ── Trigger Play & Lip-sync ───────────────────────────────────────────────
-  // Gate: hanya play SEKALI setelah audio URL dan viseme siap.
-  // visemeData TIDAK di deps — mencegah restart audio saat viseme datang belakangan.
-  useEffect(() => {
-    if (!welcomeUrl || !visemeReady || playedRef.current || !player) return;
-    playedRef.current = true;
+        if (cancelRef.current) return;
 
-    player.replace({ uri: welcomeUrl });
-    player.play();
-    startSpeaking(visemeData);
+        // 2. Set botState + visemeData ke store
+        setBotState('speaking_calm');
+        startSpeaking(vData, false);
 
-    const sub = player.addListener((status) => {
-      if (status?.didJustFinish || status?.error) {
-        stopSpeaking();
-        sub.remove();
+        // 3. Play audio via cross-platform player
+        const audioUrl = api.botAudioUrl(audioKey);
+        player.replace({ uri: audioUrl });
+        player.play();
+
+        // 4. Reset setelah selesai (estimasi max 8 detik)
+        const timeout = setTimeout(() => {
+          if (cancelRef.current) return;
+          stopSpeaking();
+          setBotState('idle');
+        }, 8000);
+
+        return () => clearTimeout(timeout);
+      } catch (err) {
+        console.warn('[HomeScreen:welcome]', err?.message);
+        setBotState('idle');
       }
-    });
-    return () => sub.remove();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [welcomeUrl, visemeReady, player]);
+    })();
 
-  // Cleanup saat unmount/pindah
-  useEffect(() => {
     return () => {
-      player?.pause();
+      cancelRef.current = true;
+      try { player.pause(); } catch (_) {}
       stopSpeaking();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [player]);
+  }, []);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -223,6 +222,7 @@ export default function HomeScreen({ navigation }) {
           <CadasLogo />
         </View>
         <TouchableOpacity onPress={() => navigation.navigate('Setelan')}>
+          {/* visemeData dari store — BotCharacter sinkron dengan startSpeaking() */}
           <BotCharacter size={56} visemeData={visemeData} />
         </TouchableOpacity>
       </View>

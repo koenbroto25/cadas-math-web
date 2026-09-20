@@ -4,13 +4,14 @@
 //           newLevel, sessionCount, avgTimeMs, drillSuggested, levelAccess }
 // FIX v2: ganti expo-av -> expo-audio (useAudioPlayer hook)
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePracticePlayer } from '../utils/createPlayer';
 import { useStore } from '../store/useStore';
 import { api } from '../services/api';
 import BotCharacter from '../components/BotCharacter';
+import { useGameAudio } from '../hooks/useGameAudio';
 
 // TARGET_MS dipindah ke src/constants/levelTargets.js (single source of truth)
 import { targetMsFor } from '../constants/levelTargets';
@@ -48,48 +49,61 @@ export default function SessionResultScreen({ navigation, route }) {
 
   const { setBotState, startSpeaking, stopSpeaking } = store;
   const cancelledRef = useRef(false);
+  const finishRef = useRef(null);
+  finishRef.current = () => { stopSpeaking(); };
 
   // usePracticePlayer: single player instance
   const player = usePracticePlayer();
+  const { startBgm, stopBgm, botSpeaking } = useGameAudio();
+  const botSpeakingRef = useRef(botSpeaking);
+  botSpeakingRef.current = botSpeaking;
+  const bgmTrack = useStore((s) => s.bgmTrack);
 
-  async function playBotAudio(id, hype = false) {
+  // addListener('ended'): kembalikan BGM + stop lip-sync (paritas PracticeScreen)
+  useEffect(() => {
+    if (!player?.addListener) return undefined;
+    const sub = player.addListener((st) => {
+      if (st?.didJustFinish || st?.error) {
+        finishRef.current?.();
+        botSpeakingRef.current?.(false);
+        if (!levelUp) setBotState('idle');
+      }
+    });
+    return () => { try { sub.remove(); } catch (_) {} };
+  }, [player]);
+
+  function validViseme(v) {
+    if (!v || typeof v !== 'object') return null;
+    const cues = v.mouthCues || v.cues;
+    if (!Array.isArray(cues) || !cues.length) return null;
+    return { mouthCues: cues.filter((c) => c && typeof c.start === 'number' && typeof c.end === 'number') };
+  }
+
+  const playBotAudio = useCallback(async (id, hype = false) => {
     try {
       let vData = null;
       try {
         const vRes = await fetch(api.botVisemeUrl(id));
-        if (vRes.ok) vData = await vRes.json();
+        if (vRes.ok) vData = validViseme(await vRes.json());
       } catch (_) {}
 
-      setBotState(hype ? 'speaking_hype' : 'speaking_calm');
       startSpeaking(vData, hype);
+      botSpeakingRef.current?.(true);
 
-      // expo-audio: replace source dan play
+      // expo-audio/web: replace source dan play (completion via addListener di atas)
       player.replace({ uri: api.botAudioUrl(id) });
       player.play();
-
-      // Tunggu selesai dengan polling
-      await new Promise((resolve) => {
-        const check = setInterval(() => {
-          if (cancelledRef.current || !player.playing) {
-            clearInterval(check);
-            resolve();
-          }
-        }, 200);
-      });
-
-      if (!cancelledRef.current) {
-        stopSpeaking();
-        setBotState('idle');
-      }
     } catch (err) {
       console.warn('[SessionResult:playBotAudio]', id, err?.message);
       stopSpeaking();
+      botSpeakingRef.current?.(false);
     }
-  }
+  }, [player, startSpeaking, stopSpeaking]);
 
   useEffect(() => {
     cancelledRef.current = false;
-
+    // BGM continuity: Practice stopBgm saat unmount — lanjutkan track sesi di sini
+    if (bgmTrack) startBgm(bgmTrack);
     let audioId;
     const isHype = levelUp || pct >= 75;
 
@@ -118,12 +132,16 @@ export default function SessionResultScreen({ navigation, route }) {
       audioId = 'bot_result_far';
     }
 
-    playBotAudio(audioId, isHype);
+    const timer=setTimeout(()=>{ if(cancelledRef.current||!audioId) return; playBotAudio(audioId, isHype).catch(()=>{}); },600);
 
     return () => {
+      clearTimeout(timer);
       cancelledRef.current = true;
       try { player.pause(); } catch (_) {}
+      try { botSpeakingRef.current && botSpeakingRef.current(false); } catch(_){}
       stopSpeaking();
+      if(!levelUp) setBotState('idle');
+      try { stopBgm(); } catch(_){}
     };
   }, []);
 

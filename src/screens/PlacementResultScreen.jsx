@@ -1,13 +1,14 @@
 // src/screens/PlacementResultScreen.jsx
 // Shows placement result, then funnels to parent registration per [ADD] §6.2
 // FIX v2: ganti expo-av -> expo-audio (API berbeda: useAudioPlayer hook)
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePracticePlayer } from '../utils/createPlayer';
 import { useStore } from '../store/useStore';
 import { api } from '../services/api';
 import BotCharacter from '../components/BotCharacter';
+import { useGameAudio } from '../hooks/useGameAudio';
 import PlacementCardModal from './PlacementCardModal';
 
 const C = { bg: '#0A0A12', surface: '#13131F', cyan: '#00F0FF', text: '#FFFFFF', muted: '#888899' };
@@ -36,7 +37,11 @@ export default function PlacementResultScreen({ navigation, route }) {
     totalAnswers = 0, correctAnswers = 0, student,
   } = route?.params ?? {};
 
-  const { setPlacementDone, setBotState, startSpeaking, stopSpeaking, visemeData } = useStore();
+  const setPlacementDone = useStore((st) => st.setPlacementDone);
+  const setBotState = useStore((st) => st.setBotState);
+  const startSpeaking = useStore((st) => st.startSpeaking);
+  const stopSpeaking = useStore((st) => st.stopSpeaking);
+  const visemeData = useStore((st) => st.visemeData);
   const [modalVisible, setModalVisible] = useState(true);
   const insets    = useSafeAreaInsets();
   const accuracy  = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : null;
@@ -46,37 +51,49 @@ export default function PlacementResultScreen({ navigation, route }) {
   const player       = usePracticePlayer();
   const cancelledRef = useRef(false);
 
-  async function playBotAudio(id, hype = false) {
+  const finishRef = useRef(null);
+  finishRef.current = () => { stopSpeaking(); };
+  const { botSpeaking } = useGameAudio();
+  const botSpeakingRef = useRef(botSpeaking);
+  botSpeakingRef.current = botSpeaking;
+
+  useEffect(() => {
+    if (!player?.addListener) return undefined;
+    const sub = player.addListener((st) => {
+      if (st?.didJustFinish || st?.error) {
+        finishRef.current?.();
+        botSpeakingRef.current?.(false);
+      }
+    });
+    return () => { try { sub.remove(); } catch (_) {} };
+  }, [player]);
+
+  function validViseme(v) {
+    if (!v || typeof v !== 'object') return null;
+    const cues = v.mouthCues || v.cues;
+    if (!Array.isArray(cues) || !cues.length) return null;
+    return { mouthCues: cues.filter((c) => c && typeof c.start === 'number' && typeof c.end === 'number') };
+  }
+
+  const playBotAudio = useCallback(async (id, hype = false) => {
     try {
-      // ambil viseme dulu (non-blocking jika gagal)
       let vData = null;
       try {
         const vRes = await fetch(api.botVisemeUrl(id));
-        if (vRes.ok) vData = await vRes.json();
+        if (vRes.ok) vData = validViseme(await vRes.json());
       } catch (_) {}
 
       startSpeaking(vData, hype);
+      botSpeakingRef.current?.(true);
 
-      // expo-audio: replace source dan play
       player.replace({ uri: api.botAudioUrl(id) });
       player.play();
-
-      // tunggu selesai dengan polling status
-      await new Promise((resolve) => {
-        const check = setInterval(() => {
-          if (cancelledRef.current || player.status?.didJustFinish || !player.playing) {
-            clearInterval(check);
-            resolve();
-          }
-        }, 200);
-      });
-
-      stopSpeaking();
     } catch (err) {
       console.warn('[PlacementResult:playBotAudio]', id, err?.message);
       stopSpeaking();
+      botSpeakingRef.current?.(false);
     }
-  }
+  }, [player, startSpeaking, stopSpeaking]);
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -121,6 +138,7 @@ export default function PlacementResultScreen({ navigation, route }) {
       cancelledRef.current = true;
       clearTimeout(timer1);
       try { player.pause(); } catch (_) {}
+      try { botSpeakingRef.current?.(false); } catch (_) {}
       stopSpeaking();
     };
   }, []);

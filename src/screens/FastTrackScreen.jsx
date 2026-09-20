@@ -20,6 +20,7 @@ import { useStore } from '../store/useStore';
 import { api, BASE_URL } from '../services/api';
 import BotCharacter from '../components/BotCharacter';
 import { SFX } from '../audio/audioCatalog';
+import { useGameAudio } from '../hooks/useGameAudio';
 
 const C = {
   bg: '#0A0A12', surface: '#13131F', cyan: '#00F0FF',
@@ -61,6 +62,24 @@ export default function FastTrackScreen() {
   const player     = usePracticePlayer();
   const sfxPlayer  = usePracticePlayer();
   const botBusyRef = useRef(false);   // true = Kak Cadas sedang bicara (SFX ditahan)
+  const stopSpeakingRef = useRef(stopSpeaking);
+  stopSpeakingRef.current = stopSpeaking;
+  const { botSpeaking } = useGameAudio();
+  const botSpeakingRef = useRef(botSpeaking);
+  botSpeakingRef.current = botSpeaking;
+
+  // addListener('ended'): stop lip-sync + lepas duck BGM (paritas PracticeScreen)
+  useEffect(() => {
+    if (!player?.addListener) return undefined;
+    const sub = player.addListener((st) => {
+      if (st?.didJustFinish || st?.error) {
+        botBusyRef.current = false;
+        stopSpeakingRef.current?.();
+        botSpeakingRef.current?.(false);
+      }
+    });
+    return () => { try { sub.remove(); } catch (_) {} };
+  }, [player]);
 
   useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
   useEffect(() => { testRef.current = test; },       [test]);
@@ -81,7 +100,7 @@ export default function FastTrackScreen() {
     };
   }, []);
 
-  // playBotAudio — pakai expo-audio
+  // playBotAudio — completion via addListener (tanpa polling .playing)
   const playBotAudio = useCallback(async (id, hype = false) => {
     try {
       const url = api.botAudioUrl(id);
@@ -89,30 +108,25 @@ export default function FastTrackScreen() {
       let vData = null;
       try {
         const vRes = await fetch(api.botVisemeUrl(id));
-        if (vRes.ok) vData = await vRes.json();
+        if (vRes.ok) {
+          const raw = await vRes.json();
+          const cues = raw?.mouthCues || raw?.cues;
+          if (Array.isArray(cues) && cues.length) {
+            vData = { mouthCues: cues.filter((c) => c && typeof c.start === 'number' && typeof c.end === 'number') };
+          }
+        }
       } catch (_) {}
 
       startSpeaking(vData, hype);
 
-      // expo-audio: replace source dan play
+      // expo-audio/web: replace source dan play (selesai ditangani addListener)
       botBusyRef.current = true;   // tahan SFX keypad selama bot bicara (Bagian 3)
+      botSpeakingRef.current?.(true);
       player.replace({ uri: url });
       player.play();
-
-      // Tunggu selesai dengan polling
-      await new Promise((resolve) => {
-        const check = setInterval(() => {
-          if (cancelledRef.current || !player.playing) {
-            clearInterval(check);
-            resolve();
-          }
-        }, 200);
-      });
-
-      botBusyRef.current = false;
-      if (!cancelledRef.current) stopSpeaking();
     } catch (err) {
       botBusyRef.current = false;
+      botSpeakingRef.current?.(false);
       console.warn('[FastTrack:playBotAudio]', id, err?.message);
       stopSpeaking();
     }

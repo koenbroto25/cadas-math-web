@@ -88,7 +88,11 @@ export default function DemoHomeScreen({ navigation }) {
 
     fetch(`${API_BASE}/api/bot-viseme/${welcomeKey}`)
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setVisemeData(data); })
+      .then(data => {
+        const cues = data?.mouthCues || data?.cues;
+        if (Array.isArray(cues) && cues.length) setVisemeData({ mouthCues: cues.filter((c) => c && typeof c.start === "number" && typeof c.end === "number") });
+        else { setVisemeData(null); }
+      })
       .catch(err => console.warn('[DemoHomeViseme] fetch error:', err))
       .finally(() => setVisemeReady(true));
   }, [welcomeKey]);

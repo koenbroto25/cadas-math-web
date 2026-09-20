@@ -5,7 +5,7 @@
  * FIX v2: ganti expo-av -> expo-audio (useAudioPlayer hook)
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { usePracticePlayer } from '../utils/createPlayer';
 import { useStore } from '../store/useStore';
 import BotCharacter from '../components/BotCharacter';
 import { api, API_BASE } from '../services/api';
+import { useGameAudio } from '../hooks/useGameAudio';
 
 const VARIANTS = [
   { id: 'gasing', label: 'GASING', icon: '⚡' },
@@ -29,10 +30,13 @@ const VARIANTS = [
 ];
 
 export default function AskKakScreen({ navigation }) {
-  const {
-    student, currentLevel, levelAccess,
-    setBotState, visemeData, startSpeaking, stopSpeaking,
-  } = useStore();
+  const student      = useStore((s) => s.student);
+  const currentLevel = useStore((s) => s.currentLevel);
+  const levelAccess  = useStore((s) => s.levelAccess);
+  const setBotState  = useStore((s) => s.setBotState);
+  const visemeData   = useStore((s) => s.visemeData);
+  const startSpeaking = useStore((s) => s.startSpeaking);
+  const stopSpeaking  = useStore((s) => s.stopSpeaking);
 
   const [question,       setQuestion]       = useState('');
   const [messages,       setMessages]       = useState([]);
@@ -45,6 +49,27 @@ export default function AskKakScreen({ navigation }) {
 
   // usePracticePlayer: single player instance, replace source saat ganti audio
   const player = usePracticePlayer();
+  const finishRef = useRef(null);
+  finishRef.current = () => {
+    setPlayingId(null);
+    stopSpeaking();
+    setBotState('idle');
+  };
+  const { botSpeaking } = useGameAudio();
+  const botSpeakingRef = useRef(botSpeaking);
+  botSpeakingRef.current = botSpeaking;
+
+  // addListener('ended'): stop lip-sync + kembalikan BGM (paritas PracticeScreen)
+  useEffect(() => {
+    if (!player?.addListener) return undefined;
+    const sub = player.addListener((st) => {
+      if (st?.didJustFinish || st?.error) {
+        finishRef.current?.();
+        botSpeakingRef.current?.(false);
+      }
+    });
+    return () => { try { sub.remove(); } catch (_) {} };
+  }, [player]);
 
   const isPremium = levelAccess === 'premium';
 
@@ -143,48 +168,38 @@ export default function AskKakScreen({ navigation }) {
     }
   };
 
-  // Sprint G.1 — playback audio bot + lip-sync, pakai expo-audio
-  async function playBotAudio(msgId, audioUrl, visemes = null) {
-    try {
-      // Ambil viseme jika belum ada
-      let vData = visemes;
-      if (!vData && audioUrl.includes('/api/tts/')) {
-        try {
-          const m    = audioUrl.match(/\/api\/tts\/([^?]+)/);
-          const t    = audioUrl.match(/type=(hint|trick)/);
-          const vRes = await fetch(api.visemeUrl(m[1], t ? t[1] : 'hint'));
+  // Sprint G.1 — playback audio bot + lip-sync (completion via addListener)
+  const playAudio = useCallback(async (msgId, audioUrl, visemes = null) => {
+    if (!audioUrl) return;
+    const raw = String(audioUrl);
+    const url = raw.startsWith("http") ? raw : (API_BASE + (raw.startsWith("/") ? raw : ("/" + raw)));
+    let vData = visemes;
+    if (!vData && url.includes("/api/tts/")) {
+      try {
+        const m = url.match(/\/api\/tts\/([^?]+)/);
+        const t = url.match(/type=(hint|trick)/);
+        if (m) {
+          const vRes = await fetch(api.visemeUrl(m[1], t ? t[1] : "hint"));
           if (vRes.ok) vData = await vRes.json();
-        } catch (_) {}
-      }
-
-      setPlayingId(msgId);
-      setBotState('speaking_calm');
-      startSpeaking(vData, false);
-
-      // expo-audio: replace source dan play
-      player.replace({ uri: audioUrl });
+        }
+      } catch (_) {}
+    }
+    const cues = (vData && (vData.mouthCues || vData.cues)) || null;
+    const vOk = Array.isArray(cues) && cues.length > 0 ? { mouthCues: cues.filter((c) => c && typeof c.start === "number" && typeof c.end === "number") } : null;
+    setPlayingId(msgId);
+    startSpeaking(vOk, false);
+    botSpeakingRef.current?.(true);
+    try {
+      player.replace({ uri: url });
       player.play();
-
-      // Polling selesai
-      await new Promise((resolve) => {
-        const check = setInterval(() => {
-          if (cancelledRef.current || !player.playing) {
-            clearInterval(check);
-            resolve();
-          }
-        }, 200);
-      });
-
-      stopSpeaking();
-      setBotState('idle');
-      setPlayingId(null);
     } catch (err) {
-      console.warn('[AskKak] playAudio error:', err);
+      console.warn("[AskKak] playAudio error:", err?.message || err);
       stopSpeaking();
-      setBotState('idle');
+      botSpeakingRef.current?.(false);
       setPlayingId(null);
     }
-  }
+  }, [player, startSpeaking, stopSpeaking]);
+  const playBotAudio = playAudio;
 
   return (
     <KeyboardAvoidingView
