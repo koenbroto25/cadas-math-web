@@ -1,7 +1,7 @@
-// src/screens/PracticeScreen.jsx
-// Layar latihan utama — soal di WebView, bot overlay di atas
+﻿// src/screens/PracticeScreen.jsx
+// Layar latihan utama â€” soal di WebView, bot overlay di atas
 // Sprint H.6: bot reaction audio lengkap (52 file mapping)
-// Sprint H.7: game mechanics — TIMEOUT, KEYPAD_HIT, BOSS_PHASE, BOSS_WIN, BOSS_LOSE
+// Sprint H.7: game mechanics â€” TIMEOUT, KEYPAD_HIT, BOSS_PHASE, BOSS_WIN, BOSS_LOSE
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
@@ -30,7 +30,7 @@ const COLORS = {
   muted:   '#888899',
 };
 
-// ── Bot audio helpers ────────────────────────────────────────────────────────
+// â”€â”€ Bot audio helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CORRECT_SOUNDS = [
   'bot_correct_01','bot_correct_02','bot_correct_03',
   'bot_correct_04','bot_correct_05',
@@ -84,7 +84,7 @@ export default function PracticeScreen({ navigation }) {
   const nextTimerRef    = useRef(null);
   const stopSpeakingRef = useRef(null);
 
-  // Boss battle state — reset setiap ganti soal
+  // Boss battle state â€” reset setiap ganti soal
   const bossPhaseRef    = useRef(1);
   const bossAnsweredRef = useRef(false);  // guard: BOSS_WIN/LOSE hanya sekali per soal
 
@@ -101,7 +101,7 @@ export default function PracticeScreen({ navigation }) {
 
   const exercise = exercises[currentIndex];
 
-  // ── Selection Rule (FASE 8.3b) ───────────────────────────────────────────
+  // â”€â”€ Selection Rule (FASE 8.3b) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [variantInfo,   setVariantInfo]   = useState(null);
   const [variantShown,  setVariantShown]  = useState(false);
 
@@ -119,12 +119,12 @@ export default function PracticeScreen({ navigation }) {
     return () => { cancelled = true; };
   }, [student?.id, currentLevel, exercise?.concept_id]);
 
-  // ── Load soal + welcome audio ────────────────────────────────────────────
+  // â”€â”€ Load soal + welcome audio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     loadExercises();
   }, [currentLevel]);
 
-  // ◆ Cleanup saat unmount: hentikan timer & audio yang masih tertunda ◆
+  // â—† Cleanup saat unmount: hentikan timer & audio yang masih tertunda â—†
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -191,7 +191,7 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // ── Idle detection: 30s audio, 60s audio, 120s sleeping ─────────────────
+  // â”€â”€ Idle detection: 30s audio, 60s audio, 120s sleeping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function resetIdleTimer() {
     clearTimeout(idleTimer.current);
     clearTimeout(idleAudio30.current);
@@ -218,13 +218,13 @@ export default function PracticeScreen({ navigation }) {
     };
   }, [currentIndex]);
 
-  // ── Pesan dari WebView (jawaban siswa + game mechanics) ──────────────────
+  // â”€â”€ Pesan dari WebView (jawaban siswa + game mechanics) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleMessage = useCallback(async (event) => {
     resetIdleTimer();
     let msg;
     try { msg = JSON.parse(event.nativeEvent.data); } catch { return; }
 
-    // ── ANSWER: jawaban benar/salah dari semua template ──────────────────
+    // â”€â”€ ANSWER: jawaban benar/salah dari semua template â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (msg.type === 'ANSWER') {
       const timeMs = Date.now() - startTime;
       recordAnswer(exercise.id, msg.correct, timeMs);
@@ -235,7 +235,7 @@ export default function PracticeScreen({ navigation }) {
       }
     }
 
-    // ── TIMEOUT: meteor mendarat / speed bar habis ────────────────────────
+    // â”€â”€ TIMEOUT: meteor mendarat / speed bar habis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Dipicu oleh: meteorFall selesai (templates-common __meteorTimer)
     //              atau speed bar habis (spellFill)
     if (msg.type === 'TIMEOUT') {
@@ -243,7 +243,7 @@ export default function PracticeScreen({ navigation }) {
       playSfx(SFX.METEOR_CRASH);
       playBotAudio('bot_timeout_01').catch(() => {});
       setBotState('disappointed_mild');
-      // Catat sebagai salah tanpa menambah wrongCount (timer habis ≠ salah input)
+      // Catat sebagai salah tanpa menambah wrongCount (timer habis â‰  salah input)
       const timeMs = Date.now() - startTime;
       recordAnswer(exercise.id, false, timeMs);
       // Langsung lanjut soal berikutnya setelah jeda singkat
@@ -259,13 +259,13 @@ export default function PracticeScreen({ navigation }) {
       }, 1800);
     }
 
-    // ── KEYPAD_HIT: tiap digit ditekan di Spell & Fill / Boss Battle ──────
+    // â”€â”€ KEYPAD_HIT: tiap digit ditekan di Spell & Fill / Boss Battle â”€â”€â”€â”€â”€â”€
     // SFX ringan, tidak mengganggu bot speaking
     if (msg.type === 'KEYPAD_HIT') {
       playSfx(SFX.DIGIT_LOCK);
     }
 
-    // ── BOSS_PHASE: boss L9 ganti fase (fase 2 atau 3) ───────────────────
+    // â”€â”€ BOSS_PHASE: boss L9 ganti fase (fase 2 atau 3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (msg.type === 'BOSS_PHASE') {
       if (!isMountedRef.current) return;
       const phase = msg.phase ?? 2;
@@ -276,7 +276,7 @@ export default function PracticeScreen({ navigation }) {
       setBotState('speaking_hype');
     }
 
-    // ── BOSS_WIN: boss L9 kalah (semua 3 fase habis HP) ──────────────────
+    // â”€â”€ BOSS_WIN: boss L9 kalah (semua 3 fase habis HP) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (msg.type === 'BOSS_WIN') {
       if (!isMountedRef.current || bossAnsweredRef.current) return;
       bossAnsweredRef.current = true;
@@ -300,7 +300,7 @@ export default function PracticeScreen({ navigation }) {
       }, 3000);
     }
 
-    // ── BOSS_LOSE: nyawa L9 habis ─────────────────────────────────────────
+    // â”€â”€ BOSS_LOSE: nyawa L9 habis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (msg.type === 'BOSS_LOSE') {
       if (!isMountedRef.current || bossAnsweredRef.current) return;
       bossAnsweredRef.current = true;
@@ -326,7 +326,7 @@ export default function PracticeScreen({ navigation }) {
 
   }, [exercise, startTime, wrongCount, botMode, streak, currentIndex]);
 
-  // ── handleCorrect ────────────────────────────────────────────────────────
+  // â”€â”€ handleCorrect â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function handleCorrect(timeMs) {
     if (variantShown && student?.id && exercise?.concept_id) {
       api.recordVariantHelpful({
@@ -344,7 +344,7 @@ export default function PracticeScreen({ navigation }) {
     setHintLevel(0);
 
     // -- Micro-sound (cadas-sounds.md Bagian 2) ------------------------------
-    // Satu sfxPlayer → satu SFX per event; streak lebih meriah menang atas
+    // Satu sfxPlayer â†’ satu SFX per event; streak lebih meriah menang atas
     // feedback biasa. sfx_correct_fast hanya Zona B & C (Bagian 6 poin 3).
     if (newStreak === 10) {
       playSfx(SFX.STREAK_10);
@@ -395,7 +395,7 @@ export default function PracticeScreen({ navigation }) {
     await playBotAudio(botSound, newStreak >= 5);
 
     // Fast Track check
-    if (confidence > 0.85 && !fastTrack) {
+    if (confidence > 0.85 && !fastTrack && newStreak >= 9) {
       setFastTrack(true);
       Alert.alert(
         'Fast Track!',
@@ -421,7 +421,7 @@ export default function PracticeScreen({ navigation }) {
     }, newStreak >= 5 ? 1500 : 800);
   }
 
-  // ── finishSession: ekstrak dari handleCorrect agar bisa dipanggil BOSS_WIN
+  // â”€â”€ finishSession: ekstrak dari handleCorrect agar bisa dipanggil BOSS_WIN
   async function finishSession() {
     const sessionResults = useStore.getState().sessionResults;
     const totalMs = Date.now() - startTime;
@@ -429,7 +429,7 @@ export default function PracticeScreen({ navigation }) {
     const accuracy = sessionResults.length > 0 ? correct / sessionResults.length : 0;
     const drillSuggested = accuracy >= 0.8 && sessionResults.length >= 5;
 
-    // Demo mode: skip saveSession dan level-up — tidak hit DB
+    // Demo mode: skip saveSession dan level-up â€” tidak hit DB
     let sessionResp = null;
     if (student?.id && !demoMode && !adminQaMode) {
       try {
@@ -471,7 +471,7 @@ export default function PracticeScreen({ navigation }) {
     });
   }
 
-  // ── handleWrong ──────────────────────────────────────────────────────────
+  // â”€â”€ handleWrong â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function handleWrong() {
     const newWrongCount   = wrongCount + 1;
     const prevStreak      = prevStreakRef.current;  // baca sebelum di-reset
@@ -554,21 +554,21 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // ── playBotAudio — bot reaction (no exercise viseme) ─────────────────────
+  // â”€â”€ playBotAudio â€” bot reaction (no exercise viseme) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function playBotAudio(id, hype = false) {
     try {
       const url = api.botAudioUrl(id);
       if (botSoundRef.current) {
         try { botSoundRef.current.pause(); } catch (_){}
       }
-      // Sprint H.7 ◆ fetch viseme dari R2 via /api/bot-viseme/:id
+      // Sprint H.7 â—† fetch viseme dari R2 via /api/bot-viseme/:id
       // Jika gagal (network/404), fallback ke SPEAKING_LOOP di BotCharacter (vData=null)
       let vData = null;
       try {
         const vRes = await fetch(api.botVisemeUrl(id));
         if (vRes.ok) vData = await vRes.json();
       } catch (_) {}
-      // Aktifkan lip-sync di BotCharacter — hype=true → speaking_hype (ekspresi semangat)
+      // Aktifkan lip-sync di BotCharacter â€” hype=true â†’ speaking_hype (ekspresi semangat)
       startSpeaking(vData, hype);
       botSpeakingRef.current?.(true);   // ducking BGM ke 20% selama Kak Cadas bicara
       botSoundRef.current.replace({ uri: url });
@@ -579,7 +579,7 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // ── playSound — exercise TTS dengan viseme lip-sync ──────────────────────
+  // â”€â”€ playSound â€” exercise TTS dengan viseme lip-sync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function playSound(url, hype = false) {
     try {
       if (soundRef.current) {
@@ -597,7 +597,7 @@ export default function PracticeScreen({ navigation }) {
         }
       } catch (_) {}
       startSpeaking(vData, hype);
-      botSpeakingRef.current?.(true);   // TTS = suara Kak Cadas → BGM ducked
+      botSpeakingRef.current?.(true);   // TTS = suara Kak Cadas â†’ BGM ducked
       soundRef.current.replace({ uri: url });
       soundRef.current.play();
     } catch (err) {
@@ -606,7 +606,7 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // ── Inject script WebView ─────────────────────────────────────────────────
+  // â”€â”€ Inject script WebView â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // CATATAN: template baru (bubblePop, spellFill, bossBattle) sudah
   // mengirim postMessage sendiri. INJECTED_JS ini hanya fallback untuk
   // template lama yang masih pakai window.checkAnswer + input#answer-input.
@@ -657,7 +657,7 @@ export default function PracticeScreen({ navigation }) {
 
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{'←'}</Text>
+          <Text style={styles.back}>{'â†'}</Text>
         </TouchableOpacity>
         <Text style={styles.levelLabel}>Level {currentLevel}</Text>
         <Text style={styles.progress}>{currentIndex + 1}/{exercises.length}</Text>
@@ -714,3 +714,4 @@ const styles = StyleSheet.create({
   botOverlay: { position: 'absolute', top: 8, right: 12, zIndex: 10, opacity: 0.92 },
   loadText:   { color: COLORS.muted, fontSize: 16 },
 });
+
