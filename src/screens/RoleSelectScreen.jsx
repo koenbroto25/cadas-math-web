@@ -1,4 +1,4 @@
-// src/screens/RoleSelectScreen.jsx — Redesign v3 + Bot Welcome
+﻿// src/screens/RoleSelectScreen.jsx â€” Redesign v3 + Bot Welcome
 // FIX v5:
 //   - Audio di-prefetch saat mount, play setelah interaksi user (bypass autoplay policy)
 //   - Bot animasi pakai CSS/JS bukan Animated API (tidak ada useNativeDriver error)
@@ -101,7 +101,7 @@ export default function RoleSelectScreen({ navigation }) {
   useEffect(() => {
     cancelRef.current = false;
 
-    const audioKey = 'bot_welcome_l1_l3';
+    const audioKey = 'bot_home_welcome_01';
     (async () => {
       try {
         // Prefetch viseme
@@ -125,7 +125,7 @@ export default function RoleSelectScreen({ navigation }) {
     };
   }, []);
 
-  // Dipanggil tepat saat user tap pertama — bypass autoplay policy browser
+  // Dipanggil tepat saat user tap pertama â€” bypass autoplay policy browser
   function triggerAudio() {
     if (didPlayRef.current || !audioReady.current) return;
     didPlayRef.current = true;
@@ -188,21 +188,21 @@ export default function RoleSelectScreen({ navigation }) {
     <View style={[s.container, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }]}>
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
-      {/* Logo — tap untuk trigger audio + secret 7x untuk demo */}
+      {/* Logo â€” tap untuk trigger audio + secret 7x untuk demo */}
       <TouchableOpacity onPress={handleLogoTap} activeOpacity={1} style={s.logoWrap}>
         <CadasLogo />
       </TouchableOpacity>
 
-      {/* Bot — muncul langsung, gerak setelah user tap */}
+      {/* Bot â€” muncul langsung, gerak setelah user tap */}
       <View style={s.botWrap}>
         <BotCharacter size={120} visemeData={visemeData} />
         <Text style={s.tagline}>Latihan cepat, naik level nyata.</Text>
-        <Text style={s.tapHint}>👆 Tap untuk menyapa Kak Cadas!</Text>
+        <Text style={s.tapHint}>ðŸ‘† Tap untuk menyapa Kak Cadas!</Text>
       </View>
 
       <View style={s.spacer} />
 
-      {/* CTA utama — tap = trigger audio juga */}
+      {/* CTA utama â€” tap = trigger audio juga */}
       <View style={s.btnGroup}>
         <TouchableOpacity
           style={s.btnPrimary}
@@ -215,7 +215,7 @@ export default function RoleSelectScreen({ navigation }) {
           style={s.btnSecondary}
           activeOpacity={0.85}
           onPress={() => { triggerAudio(); navigation.navigate('StudentRegister', { mode: 'login' }); }}>
-          <Text style={s.btnSecondaryText}>Masuk — Anak Sudah Punya Akun</Text>
+          <Text style={s.btnSecondaryText}>Masuk â€” Anak Sudah Punya Akun</Text>
         </TouchableOpacity>
       </View>
 
@@ -229,22 +229,22 @@ export default function RoleSelectScreen({ navigation }) {
       {/* Portal ghost buttons */}
       <View style={s.ghostGroup}>
         <TouchableOpacity style={s.ghostBtn} onPress={() => { triggerAudio(); navigation.navigate('ParentAuth'); }}>
-          <Text style={s.ghostIcon}>👨‍👩‍👧</Text>
+          <Text style={s.ghostIcon}>ðŸ‘¨â€ðŸ‘©â€ðŸ‘§</Text>
           <Text style={s.ghostText}>Orang Tua</Text>
         </TouchableOpacity>
         <View style={s.ghostDivider} />
         <TouchableOpacity style={s.ghostBtn} onPress={() => { triggerAudio(); navigation.navigate('ReferrerLogin'); }}>
-          <Text style={s.ghostIcon}>🏫</Text>
+          <Text style={s.ghostIcon}>ðŸ«</Text>
           <Text style={s.ghostText}>Referrer</Text>
         </TouchableOpacity>
         <View style={s.ghostDivider} />
         <TouchableOpacity style={s.ghostBtn} onPress={() => { triggerAudio(); navigation.navigate('TeacherAuth'); }}>
-          <Text style={s.ghostIcon}>👨‍🏫</Text>
+          <Text style={s.ghostIcon}>ðŸ‘¨â€ðŸ«</Text>
           <Text style={s.ghostText}>Guru</Text>
         </TouchableOpacity>
         <View style={s.ghostDivider} />
         <TouchableOpacity style={s.ghostBtn} onPress={() => { triggerAudio(); navigation.navigate('AdminLogin'); }}>
-          <Text style={s.ghostIcon}>🛠️</Text>
+          <Text style={s.ghostIcon}>ðŸ› ï¸</Text>
           <Text style={s.ghostText}>Admin</Text>
         </TouchableOpacity>
       </View>
@@ -253,7 +253,7 @@ export default function RoleSelectScreen({ navigation }) {
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={m.overlay}>
           <View style={m.card}>
-            <Text style={m.title}>🎮 Mode Demo</Text>
+            <Text style={m.title}>ðŸŽ® Mode Demo</Text>
             <Text style={m.sub}>Masukkan passcode 4 digit dari admin</Text>
             <TextInput
               style={m.input}
