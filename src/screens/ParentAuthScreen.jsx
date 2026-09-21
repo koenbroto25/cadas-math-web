@@ -23,6 +23,7 @@ export default function ParentAuthScreen({ navigation, route }) {
   const [password, setPassword] = useState('');
   const [childId,  setChildId]  = useState('');
   const [loading,  setLoading]  = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Jika datang dari deep-link ?ref=..., isi childId otomatis
   useEffect(() => {
@@ -147,9 +148,15 @@ export default function ParentAuthScreen({ navigation, route }) {
         keyboardType="email-address" autoCapitalize="none" />
 
       <Text style={s.label}>Password</Text>
-      <TextInput style={s.input} value={password} onChangeText={setPassword}
-        placeholder={mode === 'register' ? 'Min. 6 karakter' : 'Password'}
-        placeholderTextColor={C.muted} secureTextEntry />
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TextInput style={[s.input, { flex: 1 }]} value={password} onChangeText={setPassword}
+          placeholder={mode === 'register' ? 'Min. 6 karakter' : 'Password'}
+          placeholderTextColor={C.muted} secureTextEntry={!showPassword}
+          autoCapitalize='none' autoCorrect={false} />
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ marginLeft: 8, padding: 8 }}>
+          <Text style={{ color: C.cyan, fontSize: 16 }}>{showPassword ? '🙈' : '👁️'}</Text>
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity style={s.btn}
         onPress={mode === 'register' ? handleRegister : handleLogin}

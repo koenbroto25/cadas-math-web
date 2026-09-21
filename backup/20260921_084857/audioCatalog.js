@@ -17,18 +17,9 @@ export const SFX = {
   TAP:            'sfx_tap',
   KEYPAD:         'sfx_keypad',
   SESSION_START:  'sfx_session_start',
-
-  // Game mechanics SFX (tambahan untuk game exercise redesign)
-  METEOR_CRASH:   'sfx_meteor_crash',   // ~0.4s, benturan, saat TIMEOUT
-  BUBBLE_APPEAR:  'sfx_bubble_appear',  // ~0.2s, pop muncul saat load bubble
-  BUBBLE_POP:     'sfx_bubble_pop',     // ~0.15s, pop saat bubble dipilih
-  SNAP:           'sfx_snap',           // ~0.15s, klik mekanik (Slide Rail snap)
-  DIGIT_LOCK:     'sfx_digit_lock',     // ~0.1s, klik per digit (Spell & Fill)
-  BOSS_PHASE:     'sfx_boss_phase',     // ~0.5s, dramatis, saat boss ganti fase
-  GAME_OVER:      'sfx_game_over',      // ~0.6s, kelam pendek, saat BOSS_LOSE
 };
 
-// ── Backsound: 3 zona + Championship L9 (cadas-sounds.md Bagian 1) ────────
+// ── Backsound: 3 zona + Championship L9 (cadas-sounds.md Bagian 1) ─────────
 export const BGM = {
   ZONE_A: ['bgm_chill_01', 'bgm_chill_02'],                    // L1-4  (Santai)
   ZONE_B: ['bgm_energic_01', 'bgm_energic_02'],                // L5-8  (Energik)
@@ -37,12 +28,14 @@ export const BGM = {
   ZONE_C: ['bgm_focus_01', 'bgm_focus_02'],                    // L10-15 (Fokus)
 };
 
-// Ambang unlock track adaptif Zona B:
+// Ambang unlock track adaptif Zona B (cadas-sounds.md Bagian 6 poin 2):
+// siswa yang cepat naik level hanya mendengar track 1-2; yang menumpuk
+// puluhan sesi di level yang sama mendapat track 3, 4, 5 secara bertahap.
 export const ZONE_B_UNLOCK_SESSIONS = [15, 25, 40];
 
-// Rasio volume BGM saat bot berbicara — 20%.
+// Rasio volume BGM saat bot (Kak Cadas) berbicara — Bagian 6 poin 4 (20%).
 export const DUCK_RATIO = 0.20;
-// Fade-in saat kembali ke volume normal setelah bot selesai (1 detik).
+// Fade-in saat kembali ke volume normal setelah bot selesai (Bagian 3: 1 detik).
 export const DUCK_FADE_MS = 1000;
 
 export function zoneOfLevel(level) {

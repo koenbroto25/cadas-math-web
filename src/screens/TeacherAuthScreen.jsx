@@ -16,6 +16,7 @@ export default function TeacherAuthScreen({ navigation }) {
   const [name,      setName]      = useState('');
   const [email,     setEmail]     = useState('');
   const [password,  setPassword]  = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [type,      setType]      = useState('school');
   const [loading,   setLoading]   = useState(false);
 
@@ -98,9 +99,14 @@ export default function TeacherAuthScreen({ navigation }) {
         placeholder="email@sekolah.com" placeholderTextColor={C.muted}
         keyboardType="email-address" autoCapitalize="none" />
       <Text style={s.label}>Password</Text>
-      <TextInput style={s.input} value={password} onChangeText={setPassword}
-        placeholder={mode === 'register' ? 'Min. 6 karakter' : 'Password'}
-        placeholderTextColor={C.muted} secureTextEntry />
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TextInput style={[s.input, { flex: 1 }]} value={password} onChangeText={setPassword}
+          placeholder={mode === 'register' ? 'Min. 6 karakter' : 'Password'}
+          placeholderTextColor={C.muted} secureTextEntry={!showPassword} />
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ marginLeft: 8, padding: 8 }}>
+          <Text style={{ color: C.cyan, fontSize: 16 }}>{showPassword ? '🙈' : '👁️'}</Text>
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity style={s.btn}
         onPress={mode === 'login' ? handleLogin : handleRegister} disabled={loading}>

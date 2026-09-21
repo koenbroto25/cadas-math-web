@@ -24,6 +24,7 @@ export default function AdminLoginScreen({ navigation }) {
   const { setAdminAuth } = useStore();
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
 
@@ -69,16 +70,14 @@ export default function AdminLoginScreen({ navigation }) {
       />
 
       <Text style={s.label}>Password</Text>
-      <TextInput
-        style={s.input}
-        value={password}
-        onChangeText={setPassword}
-        placeholder="password admin"
-        placeholderTextColor={C.muted}
-        secureTextEntry
-        autoCapitalize="none"
-        onSubmitEditing={handleLogin}
-      />
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TextInput style={[s.input, { flex: 1 }]} value={password} onChangeText={setPassword}
+          placeholder="password admin" placeholderTextColor={C.muted}
+          secureTextEntry={!showPassword} autoCapitalize="none" onSubmitEditing={handleLogin} />
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ marginLeft: 8, padding: 8 }}>
+          <Text style={{ color: C.cyan, fontSize: 16 }}>{showPassword ? '🙈' : '👁️'}</Text>
+        </TouchableOpacity>
+      </View>
 
       {error ? <Text style={s.error}>{error}</Text> : null}
 
