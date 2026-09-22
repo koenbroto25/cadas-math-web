@@ -1,4 +1,4 @@
-/**
+﻿/**
  * BotCharacter.jsx — FASE 9: Avatar React Native Animated
  * SVG dari kak_cadas_rive_package_v2, animasi via Animated API (tanpa Rive).
  * Gamification: companion growth, level-up celebration, welcome-back.
@@ -67,7 +67,10 @@ const EXPR_MAP = {
 // react-native-svg-transformer menghasilkan component yang bisa langsung dirender
 function SvgComp({ Svg, size, style }) {
   if (!Svg) return null;
-  return <Svg width={size} height={size} style={style} />;
+  // Handle ES module: transformer bisa return {default:Comp} atau Comp langsung
+  const Comp = (Svg && typeof Svg.default === "function") ? Svg.default : Svg;
+  if (typeof Comp !== "function") return null;
+  return <Comp width={size} height={size} style={style} />;
 }
 
 // ── Komponen utama ────────────────────────────────────────────────────────────
