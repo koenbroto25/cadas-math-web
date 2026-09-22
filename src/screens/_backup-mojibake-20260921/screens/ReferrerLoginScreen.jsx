@@ -1,5 +1,5 @@
 ﻿// src/screens/ReferrerLoginScreen.jsx
-// Patch: marketing type → auto masuk demo mode setelah login
+// Patch: marketing type â†’ auto masuk demo mode setelah login
 import React, { useState } from 'react';
 import { Text, TextInput, TouchableOpacity, StyleSheet, View,
          Alert, ActivityIndicator, ScrollView } from 'react-native';
@@ -35,7 +35,7 @@ export default function ReferrerLoginScreen({ navigation }) {
       await AsyncStorage.setItem('referrerProfile', JSON.stringify(data.referrer));
       setReferrerAuth(data.token, data.referrer);
 
-      // Marketing type → aktifkan demo mode (auto-exit 30 menit)
+      // Marketing type â†’ aktifkan demo mode (auto-exit 30 menit)
       if (data.referrer?.type === 'marketing') {
         // Deadline demo DISIMPAN: timer tidak boleh reset saat refresh,
         // kalau tidak demo marketing tidak pernah berakhir (lihat App.jsx).
@@ -79,7 +79,7 @@ export default function ReferrerLoginScreen({ navigation }) {
       <TouchableOpacity style={s.btn} onPress={handleLogin} disabled={loading}>
         {loading
           ? <ActivityIndicator color={C.bg} />
-          : <Text style={s.btnText}>Masuk ⚡</Text>
+          : <Text style={s.btnText}>Masuk âš¡</Text>
         }
       </TouchableOpacity>
 

@@ -41,7 +41,7 @@ export default function ChildBillingScreen({ navigation, route }) {
     <View style={[s.container, { paddingTop: insets.top }]}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={s.back}>â† Kembali</Text>
+          <Text style={s.back}>← Kembali</Text>
         </TouchableOpacity>
         <Text style={s.title}>Billing {student?.display_name}</Text>
         <View style={{ width:60 }} />
