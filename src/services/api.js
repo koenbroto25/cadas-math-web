@@ -1,11 +1,10 @@
-// src/services/api.js
+﻿// src/services/api.js
 // Semua komunikasi ke backend Express (cadas-app-backend)
 //
 // Override tanpa ubah kode:
 //   EXPO_PUBLIC_API_URL=http://192.168.1.5:3000 npx expo start
 // Default dev: 10.0.2.2 = loopback host laptop dari Android emulator.
 // Untuk device fisik di WiFi yang sama, isi EXPO_PUBLIC_API_URL dgn IP LAN.
-// FIX v2: hapus semua duplikat key di object api
 
 const _base = process.env.EXPO_PUBLIC_API_URL
   || (typeof window !== 'undefined' ? window.location.origin
@@ -41,12 +40,12 @@ async function authFetch(path, options = {}, token = null) {
 }
 
 export const api = {
-  // ── Exercises ─────────────────────────────────────────────────────────────
+  // -- Exercises -------------------------------------------------------------
   getExercises: (level, token) => authFetch(`/api/exercises/${level}`, {}, token),
   getExercise:  (id, token)    => authFetch(`/api/exercises/item/${id}`, {}, token),
   levelInfo:    (level)        => authFetch(`/api/exercises/level-info/${level}`),
 
-  // ── Selection Rule (FASE 8.3b) ────────────────────────────────────────────
+  // -- Selection Rule --------------------------------------------------------
   selectVariant: (studentId, level, conceptId, extra = {}, token) =>
     authFetch('/api/rag/select-variant', {
       method: 'POST',
@@ -62,32 +61,29 @@ export const api = {
   recordVariantHelpful: (data, token) =>
     authFetch('/api/rag/record-helpful', { method: 'POST', body: JSON.stringify(data) }, token),
 
-  // ── Progress ──────────────────────────────────────────────────────────────
+  // -- Progress --------------------------------------------------------------
   saveSession: (data, token) =>
     authFetch('/api/progress/session', { method: 'POST', body: JSON.stringify(data) }, token),
   getProgress: (studentId, token) => authFetch(`/api/progress/${studentId}`, {}, token),
 
-  // ── Audio TTS — Sprint H.4 (backend redirect ke R2 Opus) ─────────────────
+  // -- Audio TTS -------------------------------------------------------------
   ttsUrl:    (exerciseId, type = 'hint') => `${_base}/api/tts/${exerciseId}?type=${type}`,
   visemeUrl: (exerciseId, type = 'hint') => `${_base}/api/viseme/${exerciseId}?type=${type}`,
 
-  // ── Audio level per level (Gemini master) — Sprint H.4 ───────────────────
+  // -- Audio level -----------------------------------------------------------
   levelVoice:    (level)          => authFetch(`/api/rag/level-voice/${level}`),
   levelAudioUrl: (level, segment) =>
     `${_base}/audio/speech/gemini/opus/L${level}_${segment}.opus`,
 
-  // ── Bot reaction audio — Sprint H.4 + H.7 ────────────────────────────────
-  // botVisemeUrl: endpoint /api/bot-viseme/ → R2 /bot/speech/visemes/{id}.json
+  // -- Bot audio -------------------------------------------------------------
   botAudioUrl:  (id) => `${_base}/api/bot-audio/${id}`,
   botVisemeUrl: (id) => `${_base}/api/bot-viseme/${id}`,
 
-  // ── BGM & SFX — paket cadas-audio (cadas-sounds.md Bagian 4) ─────────────
-  // Lewat backend (302 -> R2 /audio/bgm|sfx/*.opus) supaya perubahan
-  // domain/CDN tidak butuh rebuild APK.
+  // -- BGM & SFX -------------------------------------------------------------
   bgmUrl: (track) => `${_base}/api/bgm/${track}`,
   sfxUrl: (id)    => `${_base}/api/sfx/${id}`,
 
-  // ── Referrer ──────────────────────────────────────────────────────────────
+  // -- Referrer --------------------------------------------------------------
   referrerLogin:      (data)        =>
     authFetch('/api/referrer/login',    { method: 'POST', body: JSON.stringify(data) }),
   referrerMe:         (token)       => authFetch('/api/referrer/me', {}, token),
@@ -100,7 +96,7 @@ export const api = {
   referrerChangePass: (data, token) =>
     authFetch('/api/referrer/password', { method: 'PUT', body: JSON.stringify(data) }, token),
 
-  // ── Parent Dashboard (Sprint E) ───────────────────────────────────────────
+  // -- Parent Dashboard ------------------------------------------------------
   parentChildren:      (token)                            =>
     authFetch('/api/parent/children', {}, token),
   parentChildProgress: (studentId, token)                 =>
@@ -110,22 +106,19 @@ export const api = {
   parentChildBilling:  (studentId, token)                 =>
     authFetch(`/api/parent/child/${encodeURIComponent(studentId)}/billing`, {}, token),
 
-  // ── Parent — Auth Baru (new-final-auth.md) ────────────────────────────────
-  // Tambah anak via display_id 4-karakter (B7KM style)
+  // -- Parent Auth -----------------------------------------------------------
   parentAddChild: (childId, token) =>
     authFetch('/api/auth/parent/add-child', {
       method: 'POST', body: JSON.stringify({ child_id: childId }),
     }, token),
-  // Gabung akun lama → akun aktif (D3). Body: { source_email, password }
   parentMergeAccount: (sourceEmail, password, token) =>
     authFetch('/api/auth/parent/merge-account', {
       method: 'POST', body: JSON.stringify({ source_email: sourceEmail, password }),
     }, token),
-  // Daftar anak ter-link (dari /api/auth/parent/children)
   parentLinkedChildren: (token) =>
     authFetch('/api/auth/parent/children', {}, token),
 
-  // ── Teacher Dashboard (Sprint F) ──────────────────────────────────────────
+  // -- Teacher Dashboard -----------------------------------------------------
   teacherMe:       (token)            => authFetch('/api/teacher/me', {}, token),
   teacherStudents: (token)            => authFetch('/api/teacher/students', {}, token),
   teacherProgress: (studentId, token) =>
@@ -133,17 +126,14 @@ export const api = {
   teacherSessions: (studentId, page = 1, limit = 20, token) =>
     authFetch(`/api/teacher/student/${encodeURIComponent(studentId)}/sessions?page=${page}&limit=${limit}`, {}, token),
 
-  // ── Demo Mode (Sprint K.7) ────────────────────────────────────────────────
-  // Client: redeem 4-digit passcode
+  // -- Demo Mode -------------------------------------------------------------
   demoRedeem: (code) =>
     authFetch('/api/auth/demo/redeem', { method: 'POST', body: JSON.stringify({ code }) }),
-  // Admin: dapatkan permanent demo token via x-admin-secret
   demoAdminToken: (adminSecret) =>
     authFetch('/api/auth/demo/admin-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
     }),
-  // Admin: manage passcodes
   demoPasscodeList:   (token) =>
     authFetch('/api/admin/demo-passcodes', {}, token),
   demoPasscodeCreate: (label, hours, token) =>
@@ -153,12 +143,14 @@ export const api = {
   demoPasscodeRevoke: (id, token) =>
     authFetch(`/api/admin/demo-passcodes/${id}`, { method: 'DELETE' }, token),
 
-  // ── Admin (owner/developer) — full access QA ──────────────────────────────
-  // Token admin dari /api/auth/admin/login (TTL 8 jam). Dipakai sebagai
-  // Bearer ke endpoint /api/admin/* (diterima selain x-admin-secret).
+  // -- Admin -----------------------------------------------------------------
   adminLogin: (email, password) =>
     authFetch('/api/auth/admin/login', {
       method: 'POST', body: JSON.stringify({ email, password }),
+    }),
+  adminPinLogin: (pin) =>
+    authFetch('/api/auth/admin/pin-login', {
+      method: 'POST', body: JSON.stringify({ pin }),
     }),
   adminMe:        (token) => authFetch('/api/auth/admin/me', {}, token),
   adminStudents:  (token) => authFetch('/api/admin/students', {}, token),
@@ -166,4 +158,30 @@ export const api = {
   adminReferrers: (token) => authFetch('/api/admin/referrers', {}, token),
   adminBillingStatus: (studentId, token) =>
     authFetch(`/api/admin/billing/status/${encodeURIComponent(studentId)}`, {}, token),
+
+  // -- Session Notification System (Sprint S-2 & S-3) -----------------------
+  sessionStart: (data, token) =>
+    authFetch('/api/session/start', { method: 'POST', body: JSON.stringify(data) }, token),
+  sessionHeartbeat: (data, token) =>
+    authFetch('/api/session/heartbeat', { method: 'POST', body: JSON.stringify(data) }, token),
+  sessionEnd: (data, token) =>
+    authFetch('/api/session/end', { method: 'POST', body: JSON.stringify(data) }, token),
+
+  // Jadwal belajar (parent set)
+  scheduleSet: (data, token) =>
+    authFetch('/api/schedule', { method: 'POST', body: JSON.stringify(data) }, token),
+  scheduleGet: (studentId, token) =>
+    authFetch(`/api/schedule/${encodeURIComponent(studentId)}`, {}, token),
+
+  // FCM device token
+  registerDeviceToken: (data, token) =>
+    authFetch('/api/device-token', { method: 'POST', body: JSON.stringify(data) }, token),
+
+  // Riwayat study_sessions (focus_ratio, exit_count, dll)
+  parentStudySessions: (studentId, page = 1, limit = 20, token) =>
+    authFetch(`/api/parent/child/${encodeURIComponent(studentId)}/study-sessions?page=${page}&limit=${limit}`, {}, token),
+
+  // Ringkasan mingguan
+  parentWeeklySummary: (studentId, token) =>
+    authFetch(`/api/parent/weekly-summary/${encodeURIComponent(studentId)}`, {}, token),
 };

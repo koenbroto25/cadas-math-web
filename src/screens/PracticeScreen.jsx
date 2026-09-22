@@ -1,12 +1,13 @@
-﻿// src/screens/PracticeScreen.jsx
-// Layar latihan utama â€” soal di WebView, bot overlay di atas
+// src/screens/PracticeScreen.jsx
+// Layar latihan utama — soal di WebView, bot overlay di atas
 // Sprint H.6: bot reaction audio lengkap (52 file mapping)
-// Sprint H.7: game mechanics â€” TIMEOUT, KEYPAD_HIT, BOSS_PHASE, BOSS_WIN, BOSS_LOSE
+// Sprint H.7: game mechanics — TIMEOUT, KEYPAD_HIT, BOSS_PHASE, BOSS_WIN, BOSS_LOSE
+// Sprint S-2: session tracking (AppState + heartbeat + sessionStart/End)
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Alert, ActivityIndicator,
+  Alert, ActivityIndicator, AppState, Platform,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,7 +31,7 @@ const COLORS = {
   muted:   '#888899',
 };
 
-// â”€â”€ Bot audio helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Bot audio helpers -------------------------------------------------------
 const CORRECT_SOUNDS = [
   'bot_correct_01','bot_correct_02','bot_correct_03',
   'bot_correct_04','bot_correct_05',
@@ -45,6 +46,9 @@ function welcomeSound(level, isBack) {
   return 'bot_welcome_l13_l15';
 }
 
+// -- Heartbeat interval (ms) -------------------------------------------------
+const HEARTBEAT_MS = 30000;
+
 export default function PracticeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const {
@@ -54,7 +58,6 @@ export default function PracticeScreen({ navigation }) {
     getConfidenceScore, student, demoMode, adminQaMode,
   } = useStore();
 
-  // -- Audio paket cadas-audio: BGM + micro-sound (cadas-sounds.md Bagian 4) --
   const {
     startBgm, stopBgm, botSpeaking, playSfx,
   } = useGameAudio();
@@ -73,10 +76,10 @@ export default function PracticeScreen({ navigation }) {
   const [fastTrack,  setFastTrack]  = useState(false);
 
   const webviewRef      = useRef(null);
-  const soundRef        = useRef(null);   // exercise TTS
-  const botSoundRef     = useRef(null);   // bot reaction audio
-  const prevStreakRef   = useRef(0);      // untuk deteksi streak break
-  const sessionCountRef = useRef(0);      // total benar di sesi ini
+  const soundRef        = useRef(null);
+  const botSoundRef     = useRef(null);
+  const prevStreakRef   = useRef(0);
+  const sessionCountRef = useRef(0);
   const idleTimer       = useRef(null);
   const idleAudio30     = useRef(null);
   const idleAudio60     = useRef(null);
@@ -84,32 +87,149 @@ export default function PracticeScreen({ navigation }) {
   const nextTimerRef    = useRef(null);
   const stopSpeakingRef = useRef(null);
 
-  // Boss battle state â€” reset setiap ganti soal
   const bossPhaseRef    = useRef(1);
-  const bossAnsweredRef = useRef(false);  // guard: BOSS_WIN/LOSE hanya sekali per soal
+  const bossAnsweredRef = useRef(false);
 
   const visemeData    = useStore((s) => s.visemeData);
   const startSpeaking = useStore((s) => s.startSpeaking);
   const stopSpeaking  = useStore((s) => s.stopSpeaking);
 
-  // Expo Audio (expo-audio v57): lifecycle-bound players, mirrored to legacy refs
-  const ttsPlayer = usePracticePlayer();   // exercise TTS (web+native)
-  const botPlayer = usePracticePlayer();   // bot reaction audio (web+native)
+  const ttsPlayer = usePracticePlayer();
+  const botPlayer = usePracticePlayer();
   soundRef.current    = ttsPlayer;
   botSoundRef.current = botPlayer;
   stopSpeakingRef.current = stopSpeaking;
 
+  // -- Sprint S-2: Session tracking refs -------------------------------------
+  const studySessionId    = useRef(null);   // id dari /api/session/start
+  const sessionStartedAt  = useRef(null);   // wall clock sesi mulai
+  const bgStartRef        = useRef(null);   // kapan app ke background
+  const totalBgMsRef      = useRef(0);      // total ms di background
+  const exitCountRef      = useRef(0);      // berapa kali keluar app
+  const heartbeatTimer    = useRef(null);   // interval heartbeat
+  const sessionEndedRef   = useRef(false);  // guard: sessionEnd hanya sekali
+
   const exercise = exercises[currentIndex];
 
-  // â”€â”€ Selection Rule (FASE 8.3b) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const [variantInfo,   setVariantInfo]   = useState(null);
-  const [variantShown,  setVariantShown]  = useState(false);
+  // -- Sprint S-2: mulai sesi di backend -------------------------------------
+  async function startStudySession() {
+    if (!student?.id || demoMode || adminQaMode) return;
+    try {
+      const token = useStore.getState().authToken;
+      const resp  = await api.sessionStart({ level: currentLevel }, token);
+      studySessionId.current   = resp.session_id;
+      sessionStartedAt.current = Date.now();
+      totalBgMsRef.current     = 0;
+      exitCountRef.current     = 0;
+      sessionEndedRef.current  = false;
+    } catch (e) {
+      console.warn('[studySession/start]', e?.message);
+    }
+  }
+
+  // -- Sprint S-2: hitung durasi aktif (wall clock - background time) --------
+  function getDurationActiveMs() {
+    if (!sessionStartedAt.current) return 0;
+    const totalMs = Date.now() - sessionStartedAt.current;
+    return Math.max(0, totalMs - totalBgMsRef.current);
+  }
+
+  // -- Sprint S-2: kirim heartbeat setiap 30 detik ---------------------------
+  function startHeartbeat() {
+    stopHeartbeat();
+    heartbeatTimer.current = setInterval(async () => {
+      if (!studySessionId.current || !student?.id || demoMode || adminQaMode) return;
+      try {
+        const token = useStore.getState().authToken;
+        await api.sessionHeartbeat({
+          session_id:         studySessionId.current,
+          duration_active_ms: getDurationActiveMs(),
+        }, token);
+      } catch (e) {
+        console.warn('[heartbeat]', e?.message);
+      }
+    }, HEARTBEAT_MS);
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatTimer.current) {
+      clearInterval(heartbeatTimer.current);
+      heartbeatTimer.current = null;
+    }
+  }
+
+  // -- Sprint S-2: tutup sesi di backend -------------------------------------
+  async function endStudySession(sessionResults, accuracy, didLevelUp) {
+    if (!studySessionId.current || sessionEndedRef.current) return;
+    if (!student?.id || demoMode || adminQaMode) return;
+    sessionEndedRef.current = true;
+    stopHeartbeat();
+
+    // Jika masih di background saat end, hitung bg time
+    if (bgStartRef.current) {
+      totalBgMsRef.current += Date.now() - bgStartRef.current;
+      bgStartRef.current = null;
+    }
+
+    const correct   = sessionResults.filter((r) => r.correct).length;
+    const total     = sessionResults.length;
+    const activeMs  = getDurationActiveMs();
+
+    try {
+      const token = useStore.getState().authToken;
+      await api.sessionEnd({
+        session_id:         studySessionId.current,
+        duration_active_ms: activeMs,
+        exit_count:         exitCountRef.current,
+        level:              currentLevel,
+        correct_count:      correct,
+        total_count:        total,
+        accuracy:           total > 0 ? (correct / total) * 100 : 0,
+        level_up:           didLevelUp,
+      }, token);
+    } catch (e) {
+      console.warn('[studySession/end]', e?.message);
+    }
+  }
+
+  // -- Sprint S-2: AppState listener (native) atau visibilitychange (web) ----
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      // PWA: visibilitychange
+      const handler = () => {
+        if (document.hidden) {
+          bgStartRef.current = Date.now();
+          exitCountRef.current += 1;
+        } else if (bgStartRef.current) {
+          totalBgMsRef.current += Date.now() - bgStartRef.current;
+          bgStartRef.current = null;
+        }
+      };
+      document.addEventListener('visibilitychange', handler);
+      return () => document.removeEventListener('visibilitychange', handler);
+    } else {
+      // Native: AppState
+      const sub = AppState.addEventListener('change', (nextState) => {
+        if (nextState === 'background' || nextState === 'inactive') {
+          bgStartRef.current = Date.now();
+          exitCountRef.current += 1;
+        } else if (nextState === 'active' && bgStartRef.current) {
+          totalBgMsRef.current += Date.now() - bgStartRef.current;
+          bgStartRef.current = null;
+        }
+      });
+      return () => sub.remove();
+    }
+  }, []);
+
+  // -- Selection Rule (FASE 8.3b) --------------------------------------------
+  const [variantInfo,  setVariantInfo]  = useState(null);
+  const [variantShown, setVariantShown] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setVariantInfo(null);
     setVariantShown(false);
-    // Reset boss state setiap ganti soal
     bossPhaseRef.current    = 1;
     bossAnsweredRef.current = false;
     if (!student?.id || !exercise) return;
@@ -119,33 +239,30 @@ export default function PracticeScreen({ navigation }) {
     return () => { cancelled = true; };
   }, [student?.id, currentLevel, exercise?.concept_id]);
 
-  // â”€â”€ Load soal + welcome audio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Load soal + welcome audio + mulai sesi --------------------------------
   useEffect(() => {
     loadExercises();
   }, [currentLevel]);
 
-  // â—† Cleanup saat unmount: hentikan timer & audio yang masih tertunda â—†
+  // -- Cleanup saat unmount --------------------------------------------------
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       clearTimeout(nextTimerRef.current);
-      if (soundRef.current) {
-        try { soundRef.current.pause(); } catch (_){}
-      }
-      if (botSoundRef.current) {
-        try { botSoundRef.current.pause(); } catch (_){}
-      }
+      stopHeartbeat();
+      if (soundRef.current)    { try { soundRef.current.pause();    } catch (_){} }
+      if (botSoundRef.current) { try { botSoundRef.current.pause(); } catch (_){} }
       stopSpeaking();
     };
   }, []);
 
-  // Expo Audio listener (v57): hentikan viseme/bot-speaking saat playback selesai
+  // -- Expo Audio listener ---------------------------------------------------
   useEffect(() => {
     const botSub = botPlayer.addListener((st) => {
       if (st?.didJustFinish || st?.error) {
         stopSpeakingRef.current?.();
-        botSpeakingRef.current?.(false);   // BGM kembali ke volume normal (fade 1s)
+        botSpeakingRef.current?.(false);
       }
     });
     const ttsSub = ttsPlayer.addListener((st) => {
@@ -154,12 +271,13 @@ export default function PracticeScreen({ navigation }) {
         botSpeakingRef.current?.(false);
       }
     });
-    return () => { try { botSub.remove(); } catch (_){} try { ttsSub.remove(); } catch (_){} };
+    return () => {
+      try { botSub.remove(); } catch (_){}
+      try { ttsSub.remove(); } catch (_){}
+    };
   }, [botPlayer, ttsPlayer]);
 
-  // -- Backsound: mulai setelah soal siap, hentikan saat keluar layar --------
-  // Track dipilih SEKALI per sesi (tidak berganti di tengah sesi) dan
-  // disimpan di store agar SessionResult melanjutkan lagu yang sama.
+  // -- BGM -------------------------------------------------------------------
   useEffect(() => {
     if (loading || !exercise) return;
     const track = bgmTrack || pickBgmTrack(currentLevel, levelSessionCounts[currentLevel] || 0);
@@ -168,7 +286,7 @@ export default function PracticeScreen({ navigation }) {
     return () => { stopBgm(); };
   }, [loading, currentLevel, exercise?.id]);
 
-  // - sfx_session_start: sekali saat sesi pertama kali siap ------------------
+  // -- SFX session start -----------------------------------------------------
   useEffect(() => {
     if (loading || !exercise || sessionStartSfxRef.current) return;
     sessionStartSfxRef.current = true;
@@ -180,9 +298,10 @@ export default function PracticeScreen({ navigation }) {
       setLoading(true);
       const data = await api.getExercises(currentLevel);
       setExercises(data.exercises);
-      // Welcome audio setelah soal loaded
-      const isBack = sessionCountRef.current > 0;
-      setTimeout(() => playBotAudio(welcomeSound(currentLevel, isBack), false), 700);
+      setTimeout(() => playBotAudio(welcomeSound(currentLevel, sessionCountRef.current > 0), false), 700);
+      // Mulai sesi tracking setelah soal loaded
+      await startStudySession();
+      startHeartbeat();
     } catch {
       Alert.alert('Error', 'Gagal memuat soal. Cek koneksi internet.');
     } finally {
@@ -191,7 +310,7 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // â”€â”€ Idle detection: 30s audio, 60s audio, 120s sleeping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Idle detection --------------------------------------------------------
   function resetIdleTimer() {
     clearTimeout(idleTimer.current);
     clearTimeout(idleAudio30.current);
@@ -218,13 +337,12 @@ export default function PracticeScreen({ navigation }) {
     };
   }, [currentIndex]);
 
-  // â”€â”€ Pesan dari WebView (jawaban siswa + game mechanics) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Pesan dari WebView ----------------------------------------------------
   const handleMessage = useCallback(async (event) => {
     resetIdleTimer();
     let msg;
     try { msg = JSON.parse(event.nativeEvent.data); } catch { return; }
 
-    // â”€â”€ ANSWER: jawaban benar/salah dari semua template â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (msg.type === 'ANSWER') {
       const timeMs = Date.now() - startTime;
       recordAnswer(exercise.id, msg.correct, timeMs);
@@ -235,18 +353,13 @@ export default function PracticeScreen({ navigation }) {
       }
     }
 
-    // â”€â”€ TIMEOUT: meteor mendarat / speed bar habis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // Dipicu oleh: meteorFall selesai (templates-common __meteorTimer)
-    //              atau speed bar habis (spellFill)
     if (msg.type === 'TIMEOUT') {
       if (!isMountedRef.current) return;
       playSfx(SFX.METEOR_CRASH);
       playBotAudio('bot_timeout_01').catch(() => {});
       setBotState('disappointed_mild');
-      // Catat sebagai salah tanpa menambah wrongCount (timer habis â‰  salah input)
       const timeMs = Date.now() - startTime;
       recordAnswer(exercise.id, false, timeMs);
-      // Langsung lanjut soal berikutnya setelah jeda singkat
       clearTimeout(nextTimerRef.current);
       nextTimerRef.current = setTimeout(() => {
         if (!isMountedRef.current) return;
@@ -259,34 +372,27 @@ export default function PracticeScreen({ navigation }) {
       }, 1800);
     }
 
-    // â”€â”€ KEYPAD_HIT: tiap digit ditekan di Spell & Fill / Boss Battle â”€â”€â”€â”€â”€â”€
-    // SFX ringan, tidak mengganggu bot speaking
     if (msg.type === 'KEYPAD_HIT') {
       playSfx(SFX.DIGIT_LOCK);
     }
 
-    // â”€â”€ BOSS_PHASE: boss L9 ganti fase (fase 2 atau 3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (msg.type === 'BOSS_PHASE') {
       if (!isMountedRef.current) return;
       const phase = msg.phase ?? 2;
       bossPhaseRef.current = phase;
       playSfx(SFX.BOSS_PHASE);
-      const phaseAudio = phase === 2 ? 'bot_boss_phase_01' : 'bot_boss_phase_02';
-      playBotAudio(phaseAudio, true).catch(() => {});
+      playBotAudio(phase === 2 ? 'bot_boss_phase_01' : 'bot_boss_phase_02', true).catch(() => {});
       setBotState('speaking_hype');
     }
 
-    // â”€â”€ BOSS_WIN: boss L9 kalah (semua 3 fase habis HP) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (msg.type === 'BOSS_WIN') {
       if (!isMountedRef.current || bossAnsweredRef.current) return;
       bossAnsweredRef.current = true;
       playSfx(SFX.LEVEL_UP);
       playBotAudio('bot_boss_win', true).catch(() => {});
       setBotState('celebrating');
-      // Catat benar (boss win = soal selesai dengan benar)
       const timeMs = Date.now() - startTime;
       recordAnswer(exercise.id, true, timeMs);
-      // Lanjut soal berikutnya setelah animasi selesai
       clearTimeout(nextTimerRef.current);
       nextTimerRef.current = setTimeout(async () => {
         if (!isMountedRef.current) return;
@@ -300,24 +406,20 @@ export default function PracticeScreen({ navigation }) {
       }, 3000);
     }
 
-    // â”€â”€ BOSS_LOSE: nyawa L9 habis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (msg.type === 'BOSS_LOSE') {
       if (!isMountedRef.current || bossAnsweredRef.current) return;
       bossAnsweredRef.current = true;
       playSfx(SFX.GAME_OVER);
       playBotAudio('bot_boss_lose').catch(() => {});
       setBotState('disappointed_mild');
-      // Catat salah
       const timeMs = Date.now() - startTime;
       recordAnswer(exercise.id, false, timeMs);
-      // Ulangi soal yang sama setelah jeda (beri waktu siswa bernapas)
       clearTimeout(nextTimerRef.current);
       nextTimerRef.current = setTimeout(() => {
         if (!isMountedRef.current) return;
         bossAnsweredRef.current = false;
         bossPhaseRef.current    = 1;
         setBotState('idle');
-        // Reload WebView soal yang sama (reset boss ke fase 1)
         webviewRef.current?.reload();
         setStartTime(Date.now());
         setWrongCount(0);
@@ -326,7 +428,7 @@ export default function PracticeScreen({ navigation }) {
 
   }, [exercise, startTime, wrongCount, botMode, streak, currentIndex]);
 
-  // â”€â”€ handleCorrect â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- handleCorrect ---------------------------------------------------------
   async function handleCorrect(timeMs) {
     if (variantShown && student?.id && exercise?.concept_id) {
       api.recordVariantHelpful({
@@ -343,9 +445,6 @@ export default function PracticeScreen({ navigation }) {
     setShowHint(false);
     setHintLevel(0);
 
-    // -- Micro-sound (cadas-sounds.md Bagian 2) ------------------------------
-    // Satu sfxPlayer â†’ satu SFX per event; streak lebih meriah menang atas
-    // feedback biasa. sfx_correct_fast hanya Zona B & C (Bagian 6 poin 3).
     if (newStreak === 10) {
       playSfx(SFX.STREAK_10);
     } else if (newStreak === 5) {
@@ -360,7 +459,6 @@ export default function PracticeScreen({ navigation }) {
     const isLastQuestion = currentIndex >= exercises.length - 1;
     const confidence     = getConfidenceScore();
 
-    // Pilih bot audio
     let botSound;
     if (isLastQuestion) {
       botSound = 'bot_correct_last';
@@ -376,14 +474,12 @@ export default function PracticeScreen({ navigation }) {
       botSound = 'bot_streak_3';
     } else {
       botSound = pick(CORRECT_SOUNDS);
-      // Speed comment (acak, dicek independen per kategori waktu)
       const r = Math.random();
       if      (timeMs < 3000  && r < 0.05) botSound = 'bot_speed_kilat';
       else if (timeMs < 6000  && r < 0.08) botSound = 'bot_speed_cepat';
       else if (timeMs > 20000 && r < 0.06) botSound = 'bot_speed_pelan';
     }
 
-    // Bot visual state
     if (newStreak >= 10) {
       setBotState('celebrating');
     } else if (newStreak >= 5) {
@@ -394,7 +490,6 @@ export default function PracticeScreen({ navigation }) {
 
     await playBotAudio(botSound, newStreak >= 5);
 
-    // Fast Track check
     if (confidence > 0.85 && !fastTrack && newStreak >= 9) {
       setFastTrack(true);
       Alert.alert(
@@ -408,7 +503,6 @@ export default function PracticeScreen({ navigation }) {
       );
     }
 
-    // Soal berikutnya
     nextTimerRef.current = setTimeout(async () => {
       if (!isMountedRef.current) return;
       if (currentIndex < exercises.length - 1) {
@@ -421,15 +515,14 @@ export default function PracticeScreen({ navigation }) {
     }, newStreak >= 5 ? 1500 : 800);
   }
 
-  // â”€â”€ finishSession: ekstrak dari handleCorrect agar bisa dipanggil BOSS_WIN
+  // -- finishSession ---------------------------------------------------------
   async function finishSession() {
     const sessionResults = useStore.getState().sessionResults;
-    const totalMs = Date.now() - startTime;
-    const correct = sessionResults.filter((r) => r.correct).length;
+    const totalMs  = Date.now() - startTime;
+    const correct  = sessionResults.filter((r) => r.correct).length;
     const accuracy = sessionResults.length > 0 ? correct / sessionResults.length : 0;
     const drillSuggested = accuracy >= 0.8 && sessionResults.length >= 5;
 
-    // Demo mode: skip saveSession dan level-up â€” tidak hit DB
     let sessionResp = null;
     if (student?.id && !demoMode && !adminQaMode) {
       try {
@@ -442,12 +535,18 @@ export default function PracticeScreen({ navigation }) {
         console.warn('[saveSession]', e?.message);
       }
     }
+
     const didLevelUp   = sessionResp?.level_up     ?? false;
     const newLevelVal  = sessionResp?.new_level    ?? currentLevel;
     const sessionCount = sessionResp?.session_count ?? 0;
     if (didLevelUp) useStore.getState().setLevel(newLevelVal);
     useStore.getState().setLevelSessionCount(currentLevel, sessionCount);
-    if (didLevelUp) useStore.getState().setBgmTrack(null);   // zona baru = lagu baru
+    if (didLevelUp) useStore.getState().setBgmTrack(null);
+
+    // Sprint S-2: tutup study session (non-blocking, tidak menunda navigasi)
+    endStudySession(sessionResults, accuracy, didLevelUp).catch((e) =>
+      console.warn('[endStudySession]', e?.message)
+    );
 
     if (!isMountedRef.current) return;
     navigation.navigate('SessionResult', {
@@ -460,7 +559,7 @@ export default function PracticeScreen({ navigation }) {
       levelUp:        didLevelUp,
       newLevel:       newLevelVal,
       sessionCount,
-      avgTimeMs:      sessionResults.length > 0
+      avgTimeMs: sessionResults.length > 0
         ? Math.round(
             sessionResults.filter(r => r.timeMs > 0)
               .reduce((a, r) => a + r.timeMs, 0) /
@@ -471,22 +570,20 @@ export default function PracticeScreen({ navigation }) {
     });
   }
 
-  // â”€â”€ handleWrong â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- handleWrong -----------------------------------------------------------
   async function handleWrong() {
     const newWrongCount   = wrongCount + 1;
-    const prevStreak      = prevStreakRef.current;  // baca sebelum di-reset
+    const prevStreak      = prevStreakRef.current;
     prevStreakRef.current  = 0;
     setWrongCount(newWrongCount);
     setBotState('disappointed_mild');
 
-    // Streak break audio
     if (prevStreak >= 5) {
       playBotAudio('bot_streak_break_long').catch(() => {});
     } else if (prevStreak >= 3) {
       playBotAudio('bot_streak_break_short').catch(() => {});
     }
 
-    // -- Micro-sound (cadas-sounds.md Bagian 2) ------------------------------
     playSfx(SFX.WRONG);
     if (prevStreak >= 5) {
       setTimeout(() => {
@@ -494,7 +591,6 @@ export default function PracticeScreen({ navigation }) {
       }, 320);
     }
 
-    // Adaptive Presence System
     const shouldSpeak = botMode === 'intensif'
       || (botMode === 'terbimbing' && newWrongCount >= 1)
       || (botMode === 'mandiri'    && newWrongCount >= 3);
@@ -547,57 +643,47 @@ export default function PracticeScreen({ navigation }) {
       playBotAudio('bot_wrong_many').catch(() => {});
     }
 
-    // Weak student
     const confidence = getConfidenceScore();
     if (confidence > 0 && confidence < 0.3 && newWrongCount >= 2) {
       playBotAudio('bot_wrong_weak').catch(() => {});
     }
   }
 
-  // â”€â”€ playBotAudio â€” bot reaction (no exercise viseme) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- playBotAudio ----------------------------------------------------------
   async function playBotAudio(id, hype = false) {
     try {
       const url = api.botAudioUrl(id);
-      if (botSoundRef.current) {
-        try { botSoundRef.current.pause(); } catch (_){}
-      }
-      // Sprint H.7 â—† fetch viseme dari R2 via /api/bot-viseme/:id
-      // Jika gagal (network/404), fallback ke SPEAKING_LOOP di BotCharacter (vData=null)
+      if (botSoundRef.current) { try { botSoundRef.current.pause(); } catch (_){} }
       let vData = null;
       try {
         const vRes = await fetch(api.botVisemeUrl(id));
         if (vRes.ok) vData = await vRes.json();
       } catch (_) {}
-      // Aktifkan lip-sync di BotCharacter â€” hype=true â†’ speaking_hype (ekspresi semangat)
       startSpeaking(vData, hype);
-      botSpeakingRef.current?.(true);   // ducking BGM ke 20% selama Kak Cadas bicara
+      botSpeakingRef.current?.(true);
       botSoundRef.current.replace({ uri: url });
       botSoundRef.current.play();
     } catch (err) {
       console.warn('[playBotAudio]', id, err?.message);
-      stopSpeaking();               // pastikan tidak stuck di speaking state
+      stopSpeaking();
     }
   }
 
-  // â”€â”€ playSound â€” exercise TTS dengan viseme lip-sync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- playSound -------------------------------------------------------------
   async function playSound(url, hype = false) {
     try {
-      if (soundRef.current) {
-        try { soundRef.current.pause(); } catch (_){}
-      }
+      if (soundRef.current) { try { soundRef.current.pause(); } catch (_){} }
       let vData = null;
       try {
-        const idMatch = url.match(/\/api\/tts\/([^?]+)/);
+        const idMatch   = url.match(/\/api\/tts\/([^?]+)/);
+        const typeMatch = url.match(/type=(hint|trick)/);
         if (idMatch) {
-          const typeMatch = url.match(/type=(hint|trick)/);
-          const vRes = await fetch(
-            api.visemeUrl(idMatch[1], typeMatch ? typeMatch[1] : 'hint')
-          );
+          const vRes = await fetch(api.visemeUrl(idMatch[1], typeMatch ? typeMatch[1] : 'hint'));
           if (vRes.ok) vData = await vRes.json();
         }
       } catch (_) {}
       startSpeaking(vData, hype);
-      botSpeakingRef.current?.(true);   // TTS = suara Kak Cadas â†’ BGM ducked
+      botSpeakingRef.current?.(true);
       soundRef.current.replace({ uri: url });
       soundRef.current.play();
     } catch (err) {
@@ -606,10 +692,7 @@ export default function PracticeScreen({ navigation }) {
     }
   }
 
-  // â”€â”€ Inject script WebView â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // CATATAN: template baru (bubblePop, spellFill, bossBattle) sudah
-  // mengirim postMessage sendiri. INJECTED_JS ini hanya fallback untuk
-  // template lama yang masih pakai window.checkAnswer + input#answer-input.
+  // -- Inject script WebView -------------------------------------------------
   const INJECTED_JS = `
     (function() {
       var orig = window.checkAnswer;
@@ -631,9 +714,7 @@ export default function PracticeScreen({ navigation }) {
     true;
   `;
 
-  const exerciseUrl = exercise
-    ? `${BASE_URL}/exercises/${exercise.id}.html`
-    : null;
+  const exerciseUrl = exercise ? `${BASE_URL}/exercises/${exercise.id}.html` : null;
 
   if (loading) {
     return (
@@ -654,10 +735,9 @@ export default function PracticeScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{'â†'}</Text>
+          <Text style={styles.back}>{'<-'}</Text>
         </TouchableOpacity>
         <Text style={styles.levelLabel}>Level {currentLevel}</Text>
         <Text style={styles.progress}>{currentIndex + 1}/{exercises.length}</Text>
@@ -694,18 +774,14 @@ export default function PracticeScreen({ navigation }) {
           />
         )}
       </View>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container:  { flex: 1, backgroundColor: COLORS.bg },
-  center:     { flex: 1, alignItems: 'center', justifyContent: 'center',
-                backgroundColor: COLORS.bg },
-  header:     { flexDirection: 'row', alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingHorizontal: 20, paddingVertical: 12 },
+  center:     { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+  header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },
   back:       { color: COLORS.cyan, fontSize: 24 },
   levelLabel: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
   progress:   { color: COLORS.muted, fontSize: 14 },
@@ -714,4 +790,3 @@ const styles = StyleSheet.create({
   botOverlay: { position: 'absolute', top: 8, right: 12, zIndex: 10, opacity: 0.92 },
   loadText:   { color: COLORS.muted, fontSize: 16 },
 });
-
