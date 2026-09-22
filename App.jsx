@@ -1,4 +1,4 @@
-﻿// App.jsx -- root navigation
+// App.jsx -- root navigation
 // Patch: tambah DemoStack (DemoHome + DemoPractice)
 // Admin masuk demo via Settings screen yang memanggil /api/auth/demo/admin-token
 import React, { useEffect, useState } from 'react';
@@ -34,7 +34,8 @@ import TeacherAuthScreen     from './src/screens/TeacherAuthScreen';
 import ParentDashboardScreen from './src/screens/ParentDashboardScreen';
 import ChildProgressScreen   from './src/screens/ChildProgressScreen';
 import ChildSessionsScreen   from './src/screens/ChildSessionsScreen';
-import ChildBillingScreen    from './src/screens/ChildBillingScreen';
+import ChildBillingScreen           from './src/screens/ChildBillingScreen';
+import ChildWeeklySummaryScreen  from './src/screens/ChildWeeklySummaryScreen';
 
 // Screens -- Teacher Dashboard
 import TeacherDashboardScreen from './src/screens/TeacherDashboardScreen';
@@ -180,7 +181,7 @@ export default function App() {
         await useStore.getState().hydrateAudioState?.();
 
         // CATATAN: demo mode admin tidak di-persist di AsyncStorage
-        // (sengaja â€” admin harus aktifkan ulang setiap sesi via Settings)
+        // (sengaja — admin harus aktifkan ulang setiap sesi via Settings)
       } catch (_) {}
       setBootstrapped(true);
     })();
@@ -209,6 +210,11 @@ export default function App() {
   const isAdmin = !!adminToken;
   // Marketing referrer yang sedang demo: tetap punya referrerToken tapi masuk demo stack
   const isReferrerOnlyDashboard = isReferrer && !demoMode;
+  // P2 (A7): link khusus admin ?via=link → Portal Admin jadi layar awal (web).
+  // Link ini disimpan owner secara privat; UI publik tetap tanpa tombol Admin.
+  const viaAdminLink = !isAdmin && typeof window !== 'undefined' &&
+    typeof window.location === 'object' && !!window.location.search &&
+    window.location.search.indexOf('via=link') !== -1;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -216,7 +222,7 @@ export default function App() {
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
 
-            {/* â”€â”€ DEMO STACK (admin / marketing / client passcode) â”€â”€â”€â”€â”€â”€â”€ */}
+            {/* ── DEMO STACK (admin / marketing / client passcode) ─────── */}
             {isAdmin ? (
               <>
                 <Stack.Screen name='AdminDashboard' component={AdminDashboardScreen} />
@@ -232,7 +238,7 @@ export default function App() {
                 <Stack.Screen name='SessionResult' component={SessionResultScreen} />
               </>
 
-            /* â”€â”€ REFERRER DASHBOARD (school / non-marketing referrer) â”€â”€ */
+            /* ── REFERRER DASHBOARD (school / non-marketing referrer) ── */
             ) : isReferrerOnlyDashboard ? (
               <>
                 <Stack.Screen name='ReferrerDashboard' component={ReferrerDashboardScreen} />
@@ -242,36 +248,43 @@ export default function App() {
                 <Stack.Screen name='ReferrerPassword'  component={ReferrerChangePasswordScreen} />
               </>
 
-            /* â”€â”€ PARENT STACK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── PARENT STACK ────────────────────────────────────────── */
             ) : isParent ? (
               <>
                 <Stack.Screen name='ParentDashboard' component={ParentDashboardScreen} />
                 <Stack.Screen name='ChildProgress'   component={ChildProgressScreen} />
                 <Stack.Screen name='ChildSessions'   component={ChildSessionsScreen} />
-                <Stack.Screen name='ChildBilling'    component={ChildBillingScreen} />
+                <Stack.Screen name='ChildBilling'         component={ChildBillingScreen} />
+                <Stack.Screen name='ChildWeeklySummary' component={ChildWeeklySummaryScreen} />
               </>
 
-            /* â”€â”€ TEACHER STACK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── TEACHER STACK ───────────────────────────────────────── */
             ) : isTeacher ? (
               <>
                 <Stack.Screen name='TeacherDashboard' component={TeacherDashboardScreen} />
                 <Stack.Screen name='StudentDetail'    component={StudentDetailScreen} />
               </>
 
-            /* â”€â”€ AUTH STACK (belum login) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── AUTH STACK (belum login) ────────────────────────────── */
             ) : !isLoggedIn ? (
               <>
-                <Stack.Screen name='RoleSelect'      component={RoleSelectScreen} />
+                {viaAdminLink ? (
+                  <Stack.Screen name='AdminLogin'    component={AdminLoginScreen} />
+                ) : (
+                  <Stack.Screen name='RoleSelect'    component={RoleSelectScreen} />
+                )}
                 <Stack.Screen name='StudentRegister' component={StudentRegisterScreen} />
                 <Stack.Screen name='Placement'       component={PlacementScreen} />
                 <Stack.Screen name='PlacementResult' component={PlacementResultScreen} />
                 <Stack.Screen name='ParentAuth'      component={ParentAuthScreen} />
                 <Stack.Screen name='TeacherAuth'     component={TeacherAuthScreen} />
                 <Stack.Screen name='ReferrerLogin'   component={ReferrerLoginScreen} />
-                <Stack.Screen name='AdminLogin'      component={AdminLoginScreen} />
+                {!viaAdminLink && (
+                  <Stack.Screen name='AdminLogin'    component={AdminLoginScreen} />
+                )}
               </>
 
-            /* â”€â”€ PLACEMENT WAJIB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── PLACEMENT WAJIB ─────────────────────────────────────── */
             ) : needPlacement ? (
               <>
                 <Stack.Screen name='Placement'       component={PlacementScreen} />
@@ -279,7 +292,7 @@ export default function App() {
                 <Stack.Screen name='ParentAuth'      component={ParentAuthScreen} />
               </>
 
-            /* â”€â”€ MAIN APP (student login + placement done) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── MAIN APP (student login + placement done) ───────────── */
             ) : (
               <>
                 <Stack.Screen name='Main'           component={TabNavigator} />

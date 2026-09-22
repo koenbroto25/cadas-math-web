@@ -246,6 +246,12 @@ export default function ParentDashboardScreen({ navigation }) {
               {perluBayar ? '💳 Bayar Sekarang' : 'Billing'}
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => openJadwal(item)}>
+            <Text style={s.linkText}>Jadwal</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('ChildWeeklySummary', { student: item })}>
+            <Text style={s.linkText}>Mingguan</Text>
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
