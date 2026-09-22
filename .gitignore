@@ -83,3 +83,6 @@ dist*.tar.gz
 # Build archives
 dist-web-auth.tar.gz
 dist*.tar.gz
+
+google-services.json
+googleservice-info.plist

@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStore } from '../store/useStore';
 import { API_BASE } from '../services/api';
+import { registerFcmToken } from '../utils/fcmToken';
 
 const C = { bg:'#0A0A12', surface:'#13131F', cyan:'#00F0FF', text:'#FFFFFF', muted:'#888899' };
 
@@ -97,6 +98,9 @@ export default function ParentAuthScreen({ navigation, route }) {
 
     // Update Zustand state -> App.jsx deteksi isParent -> render Parent Stack
     setParentAuth(token, parent);
+
+    // Daftarkan FCM device token ke backend (non-blocking)
+    registerFcmToken(token).catch(() => {});
   }
 
   return (

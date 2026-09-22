@@ -1,61 +1,78 @@
-{
-  "expo": {
-    "name": "cadas-app",
-    "slug": "cadas-app",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "scheme": "cadasmatematika",
-    "userInterfaceStyle": "light",
-    "jsEngine": "hermes",
-    "web": {
-      "bundler": "metro",
-      "favicon": "./assets/favicon.png"
-    },
-    "ios": {
-      "supportsTablet": true,
-      "associatedDomains": ["applinks:cadasmatematika.web.id"]
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "package": "id.cadasmatematika.app",
-      "versionCode": 1,
-      "allowBackup": false,
-      "permissions": [],
-      "blockedPermissions": [
-        "android.permission.READ_CONTACTS",
-        "android.permission.WRITE_CONTACTS",
-        "android.permission.READ_CALL_LOG",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
-      ],
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "https",
-              "host": "cadasmatematika.web.id",
-              "pathPrefix": "/parent/join"
-            }
-          ],
-          "category": ["BROWSABLE", "DEFAULT"]
-        }
-      ]
-    },
-    "extra": {
-      "eas": {
-        "projectId": "1e37874c-2e49-4f0b-848a-5b15ec50928c"
-      }
-    }
-  }
+﻿{
+    "expo":  {
+                 "name":  "cadas-app",
+                 "slug":  "cadas-app",
+                 "version":  "1.0.0",
+                 "orientation":  "portrait",
+                 "icon":  "./assets/icon.png",
+                 "scheme":  "cadasmatematika",
+                 "userInterfaceStyle":  "light",
+                 "jsEngine":  "hermes",
+                 "web":  {
+                             "bundler":  "metro",
+                             "favicon":  "./assets/favicon.png"
+                         },
+                 "ios":  {
+                             "supportsTablet":  true,
+                             "associatedDomains":  [
+                                                       "applinks:cadasmatematika.web.id"
+                                                   ]
+                         },
+                 "android":  {
+                                 "adaptiveIcon":  {
+                                                      "backgroundColor":  "#E6F4FE",
+                                                      "foregroundImage":  "./assets/android-icon-foreground.png",
+                                                      "backgroundImage":  "./assets/android-icon-background.png",
+                                                      "monochromeImage":  "./assets/android-icon-monochrome.png"
+                                                  },
+                                 "package":  "id.cadasmatematika.app",
+                                 "versionCode":  1,
+                                 "allowBackup":  false,
+                                 "permissions":  [
+
+                                                 ],
+                                 "blockedPermissions":  [
+                                                            "android.permission.READ_CONTACTS",
+                                                            "android.permission.WRITE_CONTACTS",
+                                                            "android.permission.READ_CALL_LOG",
+                                                            "android.permission.ACCESS_FINE_LOCATION",
+                                                            "android.permission.ACCESS_COARSE_LOCATION",
+                                                            "android.permission.CAMERA",
+                                                            "android.permission.READ_EXTERNAL_STORAGE",
+                                                            "android.permission.WRITE_EXTERNAL_STORAGE"
+                                                        ],
+                                 "intentFilters":  [
+                                                       {
+                                                           "action":  "VIEW",
+                                                           "autoVerify":  true,
+                                                           "data":  [
+                                                                        {
+                                                                            "scheme":  "https",
+                                                                            "host":  "cadasmatematika.web.id",
+                                                                            "pathPrefix":  "/parent/join"
+                                                                        }
+                                                                    ],
+                                                           "category":  [
+                                                                            "BROWSABLE",
+                                                                            "DEFAULT"
+                                                                        ]
+                                                       }
+                                                   ],
+                                 "googleServicesFile":  "./google-services.json"
+                             },
+                 "extra":  {
+                               "eas":  {
+                                           "projectId":  "1e37874c-2e49-4f0b-848a-5b15ec50928c"
+                                       }
+                           },
+                 "plugins":  [
+                                 [
+                                     "expo-notifications",
+                                     {
+                                         "color":  "#00F0FF",
+                                         "defaultChannel":  "belajar"
+                                     }
+                                 ]
+                             ]
+             }
 }
