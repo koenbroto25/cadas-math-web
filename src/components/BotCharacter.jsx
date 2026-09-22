@@ -1,75 +1,74 @@
-﻿/**
+/**
  * BotCharacter.jsx — FASE 9: Avatar React Native Animated
  * SVG dari kak_cadas_rive_package_v2, animasi via Animated API (tanpa Rive).
  * Gamification: companion growth, level-up celebration, welcome-back.
  *
- * Sprint G.2 fix v3 — path disesuaikan persis dengan nama file di disk:
- *   viseme/a.svg, b.svg, c.svg, d.svg, e.svg, f.svg, G.svg, H.svg, x.svg
+ * FIX web: SVG diimport sebagai React component (bukan require untuk Image),
+ * sehingga render di browser via react-native-svg-transformer.
+ * Android tetap kompatibel karena transformer bekerja di kedua platform.
  */
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Animated, StyleSheet, Image, View, Text } from 'react-native';
+import { Animated, StyleSheet, View, Text, Platform } from 'react-native';
 import { useStore } from '../store/useStore';
 
-// ── Local SVG assets ──────────────────────────────────────────────────────────
-const BODY_BASE = require('../assets/bot/body/body_base.svg');
+// ── Import SVG sebagai React component (web + native) ─────────────────────────
+import BodyBase    from '../assets/bot/body/body_base.svg';
+import ExprIdle    from '../assets/bot/expr/idle.svg';
+import ExprListen  from '../assets/bot/expr/listening.svg';
+import ExprThink   from '../assets/bot/expr/thinking.svg';
+import ExprHype    from '../assets/bot/expr/hype.svg';
+import ExprCelebr  from '../assets/bot/expr/celebrating.svg';
+import ExprDisap   from '../assets/bot/expr/disappointed.svg';
 
+import VA from '../assets/bot/viseme/a.svg';   // M/B/P  — bibir tutup
+import VB from '../assets/bot/viseme/b.svg';   // I/E    — meregang
+import VC from '../assets/bot/viseme/c.svg';   // Schwa  — netral rileks
+import VD from '../assets/bot/viseme/d.svg';   // A/H    — mulut lebar
+import VE from '../assets/bot/viseme/e.svg';   // O/U    — bulat
+import VF from '../assets/bot/viseme/f.svg';   // U/W    — fallback E
+import VG from '../assets/bot/viseme/G.svg';   // S/Z/T  — gigi terlihat
+import VH from '../assets/bot/viseme/H.svg';   // F/V    — celah tipis
+import VX from '../assets/bot/viseme/x.svg';   // Silent — rileks
+
+// ── Lookup tables ─────────────────────────────────────────────────────────────
 const EXPR = {
-  idle:         require('../assets/bot/expr/idle.svg'),
-  listening:    require('../assets/bot/expr/listening.svg'),
-  thinking:     require('../assets/bot/expr/thinking.svg'),
-  hype:         require('../assets/bot/expr/hype.svg'),
-  celebrating:  require('../assets/bot/expr/celebrating.svg'),
-  disappointed: require('../assets/bot/expr/disappointed.svg'),
+  idle:         ExprIdle,
+  listening:    ExprListen,
+  thinking:     ExprThink,
+  hype:         ExprHype,
+  celebrating:  ExprCelebr,
+  disappointed: ExprDisap,
 };
 
-// ── Viseme SVG — path PERSIS sesuai nama file di disk ────────────────────────
-// File di disk: a.svg b.svg c.svg d.svg e.svg f.svg G.svg H.svg x.svg
-const V = {
-  a: require('../assets/bot/viseme/a.svg'),  // M/B/P  — bibir tutup
-  b: require('../assets/bot/viseme/b.svg'),  // I/E    — meregang
-  c: require('../assets/bot/viseme/c.svg'),  // Schwa  — netral rileks
-  d: require('../assets/bot/viseme/d.svg'),  // A/H    — mulut lebar
-  e: require('../assets/bot/viseme/e.svg'),  // O/U    — bulat
-  f: require('../assets/bot/viseme/f.svg'),  // U/W    — fallback E
-  G: require('../assets/bot/viseme/G.svg'),  // S/Z/T  — gigi terlihat
-  H: require('../assets/bot/viseme/H.svg'),  // F/V    — celah tipis
-  x: require('../assets/bot/viseme/x.svg'),  // Silent — rileks
+const VISEME_MAP = {
+  X: VX, A: VA, B: VB, C: VC, D: VD, E: VE, F: VF, G: VG, H: VH,
+  x: VX, a: VA, b: VB, c: VC, d: VD, e: VE, f: VF, g: VG, h: VH,
+  M: VA, P: VA, O: VE, U: VE, K: VG, N: VD, L: VD, V: VH,
 };
 
-// ── VISEME lookup: terima kode Rhubarb (A–H, X) huruf apa pun ────────────────
-// Semua kode dinormalisasi ke asset yang benar tanpa rename file.
-const VISEME = {
-  // Rhubarb uppercase (format standar backend)
-  X: V.x, A: V.a, B: V.b, C: V.c, D: V.d,
-  E: V.e, F: V.f, G: V.G, H: V.H,
-  // Rhubarb lowercase (defensive — jika backend kirim lowercase)
-  x: V.x, a: V.a, b: V.b, c: V.c, d: V.d,
-  e: V.e, f: V.f, g: V.G, h: V.H,
-  // Alias fonem lama (defensive — jika ada data lama di DB)
-  M: V.a, P: V.a,            // bilabial → a (bibir tutup)
-  O: V.e, U: V.e,            // vokal bulat → e
-  K: V.G, N: V.d, L: V.d,   // konsonan → alias terdekat
-  V: V.H,                    // labiodental → H (celah tipis)
-};
-
-// Fallback loop saat speaking tanpa data viseme
 const SPEAKING_LOOP = ['X', 'A', 'G', 'D', 'G', 'B', 'C', 'D', 'A', 'E'];
 
-// Map botState → expression asset
 const EXPR_MAP = {
-  idle:              EXPR.idle,
-  listening:         EXPR.listening,
-  thinking:          EXPR.thinking,
-  speaking_calm:     EXPR.idle,
-  speaking_hype:     EXPR.hype,
-  celebrating:       EXPR.celebrating,
-  disappointed_mild: EXPR.disappointed,
-  sleeping:          EXPR.idle,
-  welcome_back:      EXPR.hype,
-  level_up:          EXPR.celebrating,
-  fast_track:        EXPR.celebrating,
+  idle:              ExprIdle,
+  listening:         ExprListen,
+  thinking:          ExprThink,
+  speaking_calm:     ExprIdle,
+  speaking_hype:     ExprHype,
+  celebrating:       ExprCelebr,
+  disappointed_mild: ExprDisap,
+  sleeping:          ExprIdle,
+  welcome_back:      ExprHype,
+  level_up:          ExprCelebr,
+  fast_track:        ExprCelebr,
 };
+
+// ── Helper: render SVG component cross-platform ───────────────────────────────
+// react-native-svg-transformer menghasilkan component yang bisa langsung dirender
+function SvgComp({ Svg, size, style }) {
+  if (!Svg) return null;
+  return <Svg width={size} height={size} style={style} />;
+}
 
 // ── Komponen utama ────────────────────────────────────────────────────────────
 export default function BotCharacter({
@@ -78,15 +77,12 @@ export default function BotCharacter({
   visemeData = null,
   showCompanion = false,
 }) {
-  // Fallback: jika prop visemeData tidak di-pass (null/undefined),
-  // ambil dari store agar lip-sync tetap jalan (anti-silent viseme).
-  const storeViseme = useStore((s) => s.visemeData);
+  const storeViseme     = useStore((s) => s.visemeData);
   const effectiveViseme = visemeData ?? storeViseme;
-  const botState       = useStore((s) => s.botState);
-  const streak         = useStore((s) => s.streak);
-  const companionLevel = useStore((s) => s.companionLevel);
+  const botState        = useStore((s) => s.botState);
+  const streak          = useStore((s) => s.streak);
+  const companionLevel  = useStore((s) => s.companionLevel);
 
-  // Animated values
   const floatAnim     = useRef(new Animated.Value(0)).current;
   const shakeAnim     = useRef(new Animated.Value(0)).current;
   const bounceAnim    = useRef(new Animated.Value(1)).current;
@@ -96,15 +92,13 @@ export default function BotCharacter({
   const crossfadeAnim = useRef(new Animated.Value(1)).current;
 
   const [currentViseme, setCurrentViseme] = useState('X');
-  const [prevExpr, setPrevExpr]           = useState(EXPR.idle);
-  const [currExpr, setCurrExpr]           = useState(EXPR.idle);
+  const [prevExpr, setPrevExpr]           = useState(ExprIdle);
+  const [currExpr, setCurrExpr]           = useState(ExprIdle);
   const visemeTimerRef = useRef(null);
 
-  const isSpeaking = botState === 'speaking_calm' || botState === 'speaking_hype';
-  const exprAsset  = EXPR_MAP[botState] ?? EXPR.idle;
-
-  // Resolve viseme — lookup langsung, fallback ke x (silent) jika kode tidak dikenal
-  const visemeAsset = VISEME[currentViseme] ?? V.x;
+  const isSpeaking  = botState === 'speaking_calm' || botState === 'speaking_hype';
+  const exprAsset   = EXPR_MAP[botState] ?? ExprIdle;
+  const visemeAsset = VISEME_MAP[currentViseme] ?? VX;
 
   // ── Crossfade saat ekspresi berubah ─────────────────────────────────────────
   useEffect(() => {
@@ -209,9 +203,8 @@ export default function BotCharacter({
       return;
     }
 
-    if ((effectiveViseme?.mouthCues?.length > 0) || (effectiveViseme?.cues?.length > 0)) {
-      // Data Rhubarb / pcmToVisemes tersedia — sinkron per timestamp
-      const cues      = effectiveViseme.mouthCues || effectiveViseme.cues;
+    const cues = effectiveViseme?.mouthCues || effectiveViseme?.cues;
+    if (cues?.length > 0) {
       const startTime = Date.now();
       const tick = () => {
         const elapsed = (Date.now() - startTime) / 1000;
@@ -220,7 +213,6 @@ export default function BotCharacter({
       };
       visemeTimerRef.current = setInterval(tick, 40);
     } else {
-      // Fallback loop — saat TTS tidak punya data viseme
       let idx = 0;
       visemeTimerRef.current = setInterval(() => {
         setCurrentViseme(SPEAKING_LOOP[idx % SPEAKING_LOOP.length]);
@@ -233,7 +225,7 @@ export default function BotCharacter({
     };
   }, [isSpeaking, effectiveViseme]);
 
-  // ── Companion badge (gamification) ──────────────────────────────────────────
+  // ── Companion badge ──────────────────────────────────────────────────────────
   const companionBadge = useMemo(() => {
     if (!showCompanion) return null;
     if (companionLevel >= 5) return { icon: '👑', label: 'Master' };
@@ -247,6 +239,8 @@ export default function BotCharacter({
     <View style={[styles.wrapper, style]}>
       <Animated.View
         style={[styles.container, {
+          width: size,
+          height: size,
           opacity: opacityAnim,
           transform: [
             { translateY: floatAnim },
@@ -258,25 +252,22 @@ export default function BotCharacter({
       >
         {/* Previous expression (crossfade out) */}
         <Animated.View style={[StyleSheet.absoluteFill, { opacity: Animated.subtract(1, crossfadeAnim) }]}>
-          <Image source={prevExpr} style={{ width: size, height: size }} resizeMode="contain" />
+          <SvgComp Svg={prevExpr} size={size} />
         </Animated.View>
 
         {/* Current expression (crossfade in) */}
         <Animated.View style={[StyleSheet.absoluteFill, { opacity: crossfadeAnim }]}>
-          <Image source={currExpr} style={{ width: size, height: size }} resizeMode="contain" />
+          <SvgComp Svg={currExpr} size={size} />
         </Animated.View>
 
         {/* Viseme overlay saat speaking */}
         {isSpeaking && (
-          <Image
-            source={visemeAsset}
-            style={[StyleSheet.absoluteFill, { width: size, height: size }]}
-            resizeMode="contain"
-          />
+          <View style={StyleSheet.absoluteFill}>
+            <SvgComp Svg={visemeAsset} size={size} />
+          </View>
         )}
       </Animated.View>
 
-      {/* Companion badge */}
       {companionBadge && (
         <View style={styles.badge}>
           <Text style={styles.badgeIcon}>{companionBadge.icon}</Text>
@@ -287,7 +278,7 @@ export default function BotCharacter({
   );
 }
 
-// ── BotBody — full body untuk halaman beranda ────────────────────────────────
+// ── BotBody ───────────────────────────────────────────────────────────────────
 export function BotBody({ size = 200, style }) {
   const floatAnim = useRef(new Animated.Value(0)).current;
 
@@ -304,12 +295,12 @@ export function BotBody({ size = 200, style }) {
 
   return (
     <Animated.View style={[style, { transform: [{ translateY: floatAnim }] }]}>
-      <Image source={BODY_BASE} style={{ width: size, height: size }} resizeMode="contain" />
+      <BodyBase width={size} height={size} />
     </Animated.View>
   );
 }
 
-// ── Styles ───────────────────────────────────────────────────────────────────
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   wrapper:   { alignItems: 'center', justifyContent: 'center' },
   container: { alignItems: 'center', justifyContent: 'center' },
