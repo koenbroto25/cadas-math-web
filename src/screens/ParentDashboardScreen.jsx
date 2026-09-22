@@ -6,7 +6,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet,
 import { useStore } from '../store/useStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE } from '../services/api';
+import { API_BASE, api } from '../services/api';
 
 const C = {
   bg:'#0A0A12', surface:'#13131F', cyan:'#00F0FF', text:'#FFFFFF',
@@ -45,6 +45,61 @@ export default function ParentDashboardScreen({ navigation }) {
   const [mergeEmail,  setMergeEmail]  = useState('');
   const [mergePass,   setMergePass]   = useState('');
   const [busy,        setBusy]        = useState(false);
+
+  // -- Jadwal belajar --------------------------------------------------------
+  const [showJadwal,   setShowJadwal]   = useState(false);
+  const [jadwalStudent, setJadwalStudent] = useState(null);
+  const [jadwalDays,   setJadwalDays]   = useState([1,2,3,4,5]);
+  const [jadwalStart,  setJadwalStart]  = useState('16:00');
+  const [jadwalEnd,    setJadwalEnd]    = useState('17:00');
+  const [jadwalBusy,   setJadwalBusy]   = useState(false);
+
+  const HARI = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+
+  async function openJadwal(student) {
+    setJadwalStudent(student);
+    setJadwalDays([1,2,3,4,5]);
+    setJadwalStart('16:00');
+    setJadwalEnd('17:00');
+    try {
+      const token = await AsyncStorage.getItem('parentToken');
+      const data  = await api.scheduleGet(student.id, token);
+      if (data.schedule) {
+        setJadwalDays(data.schedule.days || [1,2,3,4,5]);
+        setJadwalStart(String(data.schedule.start_time).slice(0,5) || '16:00');
+        setJadwalEnd(String(data.schedule.end_time).slice(0,5)   || '17:00');
+      }
+    } catch (_) {}
+    setShowJadwal(true);
+  }
+
+  function toggleDay(d) {
+    setJadwalDays((prev) =>
+      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()
+    );
+  }
+
+  async function saveJadwal() {
+    if (jadwalDays.length === 0) return Alert.alert('', 'Pilih minimal 1 hari.');
+    if (!jadwalStart.match(/^\d{2}:\d{2}$/)) return Alert.alert('', 'Format jam: HH:MM');
+    if (!jadwalEnd.match(/^\d{2}:\d{2}$/))   return Alert.alert('', 'Format jam: HH:MM');
+    setJadwalBusy(true);
+    try {
+      const token = await AsyncStorage.getItem('parentToken');
+      await api.scheduleSet({
+        student_id: jadwalStudent.id,
+        days:       jadwalDays,
+        start_time: jadwalStart,
+        end_time:   jadwalEnd,
+        timezone:   'Asia/Jakarta',
+        active:     true,
+      }, token);
+      setShowJadwal(false);
+      Alert.alert('Berhasil', 'Jadwal belajar disimpan.');
+    } catch (e) {
+      Alert.alert('Gagal', e?.message || 'Coba lagi.');
+    } finally { setJadwalBusy(false); }
+  }
 
   async function load(isRefresh = false) {
     isRefresh ? setRefreshing(true) : setLoading(true);
@@ -359,6 +414,13 @@ const s = StyleSheet.create({
   payBtn:           { backgroundColor:C.magenta, borderRadius:10,
                       paddingVertical:10, alignItems:'center' },
   payBtnText:       { color:C.text, fontSize:13, fontWeight:'bold' },
+
+  // Jadwal day selector
+  dayBtn:           { paddingHorizontal:12, paddingVertical:8, borderRadius:20,
+                      backgroundColor:C.surface, borderWidth:1, borderColor:'#ffffff22' },
+  dayBtnActive:     { backgroundColor:C.cyan, borderColor:C.cyan },
+  dayBtnText:       { color:C.muted, fontSize:13, fontWeight:'600' },
+  dayBtnTextActive: { color:C.bg },
 
   // Footer
   cardFooter:       { flexDirection:'row', justifyContent:'space-around',
