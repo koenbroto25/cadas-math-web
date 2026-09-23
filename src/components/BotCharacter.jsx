@@ -3,52 +3,34 @@
  * SVG dari kak_cadas_rive_package_v2, animasi via Animated API (tanpa Rive).
  * Gamification: companion growth, level-up celebration, welcome-back.
  *
- * FIX web: SVG diimport sebagai React component (bukan require untuk Image),
- * sehingga render di browser via react-native-svg-transformer.
- * Android tetap kompatibel karena transformer bekerja di kedua platform.
+ * FIX web v2: tambah resolveRequest di metro.config.js agar react-native-svg
+ * pakai ReactNativeSVG.web.js di browser. SvgComp pakai error guard.
  */
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Animated, StyleSheet, View, Text, Platform } from 'react-native';
 import { useStore } from '../store/useStore';
 
-// ── Import SVG sebagai React component (web + native) ─────────────────────────
-import BodyBase    from '../assets/bot/body/body_base.svg';
-import ExprIdle    from '../assets/bot/expr/idle.svg';
-import ExprListen  from '../assets/bot/expr/listening.svg';
-import ExprThink   from '../assets/bot/expr/thinking.svg';
-import ExprHype    from '../assets/bot/expr/hype.svg';
-import ExprCelebr  from '../assets/bot/expr/celebrating.svg';
-import ExprDisap   from '../assets/bot/expr/disappointed.svg';
+// Import SVG sebagai React component (web + native via SVGR transformer)
+import BodyBase   from '../assets/bot/body/body_base.svg';
+import ExprIdle   from '../assets/bot/expr/idle.svg';
+import ExprListen from '../assets/bot/expr/listening.svg';
+import ExprThink  from '../assets/bot/expr/thinking.svg';
+import ExprHype   from '../assets/bot/expr/hype.svg';
+import ExprCelebr from '../assets/bot/expr/celebrating.svg';
+import ExprDisap  from '../assets/bot/expr/disappointed.svg';
 
-import VA from '../assets/bot/viseme/a.svg';   // M/B/P  — bibir tutup
-import VB from '../assets/bot/viseme/b.svg';   // I/E    — meregang
-import VC from '../assets/bot/viseme/c.svg';   // Schwa  — netral rileks
-import VD from '../assets/bot/viseme/d.svg';   // A/H    — mulut lebar
-import VE from '../assets/bot/viseme/e.svg';   // O/U    — bulat
-import VF from '../assets/bot/viseme/f.svg';   // U/W    — fallback E
-import VG from '../assets/bot/viseme/G.svg';   // S/Z/T  — gigi terlihat
-import VH from '../assets/bot/viseme/H.svg';   // F/V    — celah tipis
-import VX from '../assets/bot/viseme/x.svg';   // Silent — rileks
+import VA from '../assets/bot/viseme/a.svg';
+import VB from '../assets/bot/viseme/b.svg';
+import VC from '../assets/bot/viseme/c.svg';
+import VD from '../assets/bot/viseme/d.svg';
+import VE from '../assets/bot/viseme/e.svg';
+import VF from '../assets/bot/viseme/f.svg';
+import VG from '../assets/bot/viseme/G.svg';
+import VH from '../assets/bot/viseme/H.svg';
+import VX from '../assets/bot/viseme/x.svg';
 
-// ── Lookup tables ─────────────────────────────────────────────────────────────
-const EXPR = {
-  idle:         ExprIdle,
-  listening:    ExprListen,
-  thinking:     ExprThink,
-  hype:         ExprHype,
-  celebrating:  ExprCelebr,
-  disappointed: ExprDisap,
-};
-
-const VISEME_MAP = {
-  X: VX, A: VA, B: VB, C: VC, D: VD, E: VE, F: VF, G: VG, H: VH,
-  x: VX, a: VA, b: VB, c: VC, d: VD, e: VE, f: VF, g: VG, h: VH,
-  M: VA, P: VA, O: VE, U: VE, K: VG, N: VD, L: VD, V: VH,
-};
-
-const SPEAKING_LOOP = ['X', 'A', 'G', 'D', 'G', 'B', 'C', 'D', 'A', 'E'];
-
+// Lookup tables
 const EXPR_MAP = {
   idle:              ExprIdle,
   listening:         ExprListen,
@@ -63,17 +45,31 @@ const EXPR_MAP = {
   fast_track:        ExprCelebr,
 };
 
-// ── Helper: render SVG component cross-platform ───────────────────────────────
-// react-native-svg-transformer menghasilkan component yang bisa langsung dirender
+const VISEME_MAP = {
+  X: VX, A: VA, B: VB, C: VC, D: VD, E: VE, F: VF, G: VG, H: VH,
+  x: VX, a: VA, b: VB, c: VC, d: VD, e: VE, f: VF, g: VG, h: VH,
+  M: VA, P: VA, O: VE, U: VE, K: VG, N: VD, L: VD, V: VH,
+};
+
+const SPEAKING_LOOP = ['X', 'A', 'G', 'D', 'G', 'B', 'C', 'D', 'A', 'E'];
+
+// Helper render SVG — resolve default export, guard null & typeof
 function SvgComp({ Svg, size, style }) {
   if (!Svg) return null;
-  // Handle ES module: transformer bisa return {default:Comp} atau Comp langsung
-  const Comp = (Svg && typeof Svg.default === "function") ? Svg.default : Svg;
-  if (typeof Comp !== "function") return null;
-  return <Comp width={size} height={size} style={style} />;
+  // SVGR bisa return component langsung atau { default: Comp }
+  const Comp = (Svg && typeof Svg === 'object' && typeof Svg.default === 'function')
+    ? Svg.default
+    : Svg;
+  if (typeof Comp !== 'function') return null;
+  try {
+    return <Comp width={size} height={size} style={style} />;
+  } catch (e) {
+    if (__DEV__) console.warn('[SvgComp] render error:', e?.message);
+    return null;
+  }
 }
 
-// ── Komponen utama ────────────────────────────────────────────────────────────
+// Komponen utama
 export default function BotCharacter({
   size = 120,
   style,
@@ -103,7 +99,7 @@ export default function BotCharacter({
   const exprAsset   = EXPR_MAP[botState] ?? ExprIdle;
   const visemeAsset = VISEME_MAP[currentViseme] ?? VX;
 
-  // ── Crossfade saat ekspresi berubah ─────────────────────────────────────────
+  // Crossfade saat ekspresi berubah
   useEffect(() => {
     if (exprAsset !== currExpr) {
       setPrevExpr(currExpr);
@@ -115,7 +111,7 @@ export default function BotCharacter({
     }
   }, [exprAsset]);
 
-  // ── Float idle (selalu jalan) ────────────────────────────────────────────────
+  // Float idle
   useEffect(() => {
     const float = Animated.loop(
       Animated.sequence([
@@ -127,7 +123,7 @@ export default function BotCharacter({
     return () => float.stop();
   }, []);
 
-  // ── Animasi per state ────────────────────────────────────────────────────────
+  // Animasi per state
   useEffect(() => {
     shakeAnim.setValue(0);
     bounceAnim.setValue(1);
@@ -143,7 +139,6 @@ export default function BotCharacter({
         Animated.timing(bounceAnim, { toValue: isSpecial ? 1.15 : 1.08, duration: 100, useNativeDriver: false }),
         Animated.timing(bounceAnim, { toValue: 1.0,                      duration: 100, useNativeDriver: false }),
       ]).start();
-
     } else if (botState === 'disappointed_mild') {
       Animated.sequence([
         Animated.timing(shakeAnim, { toValue: -5, duration: 70, useNativeDriver: false }),
@@ -151,7 +146,6 @@ export default function BotCharacter({
         Animated.timing(shakeAnim, { toValue: -3, duration: 70, useNativeDriver: false }),
         Animated.timing(shakeAnim, { toValue:  0, duration: 70, useNativeDriver: false }),
       ]).start();
-
     } else if (botState === 'thinking') {
       Animated.loop(
         Animated.sequence([
@@ -161,7 +155,6 @@ export default function BotCharacter({
         ]),
         { iterations: 4 }
       ).start();
-
     } else if (botState === 'listening') {
       Animated.loop(
         Animated.sequence([
@@ -169,7 +162,6 @@ export default function BotCharacter({
           Animated.timing(scaleAnim, { toValue: 1.0,  duration: 800, useNativeDriver: false }),
         ])
       ).start();
-
     } else if (botState === 'speaking_hype') {
       Animated.loop(
         Animated.sequence([
@@ -178,7 +170,6 @@ export default function BotCharacter({
         ]),
         { iterations: 4 }
       ).start(() => bounceAnim.setValue(1));
-
     } else if (botState === 'sleeping') {
       Animated.loop(
         Animated.sequence([
@@ -186,7 +177,6 @@ export default function BotCharacter({
           Animated.timing(opacityAnim, { toValue: 1.0, duration: 2000, useNativeDriver: false }),
         ])
       ).start();
-
     } else if (botState === 'welcome_back') {
       Animated.sequence([
         Animated.timing(scaleAnim, { toValue: 1.15, duration: 300, useNativeDriver: false }),
@@ -197,21 +187,17 @@ export default function BotCharacter({
     }
   }, [botState]);
 
-  // ── Lip-sync viseme ──────────────────────────────────────────────────────────
+  // Lip-sync viseme
   useEffect(() => {
     if (visemeTimerRef.current) clearInterval(visemeTimerRef.current);
-
-    if (!isSpeaking) {
-      setCurrentViseme('X');
-      return;
-    }
+    if (!isSpeaking) { setCurrentViseme('X'); return; }
 
     const cues = effectiveViseme?.mouthCues || effectiveViseme?.cues;
     if (cues?.length > 0) {
       const startTime = Date.now();
       const tick = () => {
         const elapsed = (Date.now() - startTime) / 1000;
-        const cue     = cues.find((c) => elapsed >= c.start && elapsed < c.end);
+        const cue = cues.find((c) => elapsed >= c.start && elapsed < c.end);
         setCurrentViseme(cue ? cue.value : 'X');
       };
       visemeTimerRef.current = setInterval(tick, 40);
@@ -222,13 +208,10 @@ export default function BotCharacter({
         idx++;
       }, 120);
     }
-
-    return () => {
-      if (visemeTimerRef.current) clearInterval(visemeTimerRef.current);
-    };
+    return () => { if (visemeTimerRef.current) clearInterval(visemeTimerRef.current); };
   }, [isSpeaking, effectiveViseme]);
 
-  // ── Companion badge ──────────────────────────────────────────────────────────
+  // Companion badge
   const companionBadge = useMemo(() => {
     if (!showCompanion) return null;
     if (companionLevel >= 5) return { icon: '👑', label: 'Master' };
@@ -237,7 +220,6 @@ export default function BotCharacter({
     return null;
   }, [showCompanion, companionLevel, streak]);
 
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.wrapper, style]}>
       <Animated.View
@@ -281,10 +263,9 @@ export default function BotCharacter({
   );
 }
 
-// ── BotBody ───────────────────────────────────────────────────────────────────
+// BotBody
 export function BotBody({ size = 200, style }) {
   const floatAnim = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
     const float = Animated.loop(
       Animated.sequence([
@@ -295,7 +276,6 @@ export function BotBody({ size = 200, style }) {
     float.start();
     return () => float.stop();
   }, []);
-
   return (
     <Animated.View style={[style, { transform: [{ translateY: floatAnim }] }]}>
       <BodyBase width={size} height={size} />
@@ -303,7 +283,6 @@ export function BotBody({ size = 200, style }) {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   wrapper:   { alignItems: 'center', justifyContent: 'center' },
   container: { alignItems: 'center', justifyContent: 'center' },
