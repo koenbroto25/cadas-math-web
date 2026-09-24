@@ -23,6 +23,7 @@ export default function TeacherDashboardScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { clearTeacherAuth } = useStore();
   const [teacher,    setTeacher]    = useState(null);
+  const [marketing,  setMarketing]  = useState(null);
   const [students,   setStudents]   = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,6 +43,7 @@ export default function TeacherDashboardScreen({ navigation }) {
       const me  = await meRes.json();
       const stu = await stuRes.json();
       setTeacher(me.teacher);
+      setMarketing(me.marketing || null);
       setStudents(stu.students || []);
     } catch { Alert.alert('Error', 'Gagal memuat data.'); }
     finally  { isRefresh ? setRefreshing(false) : setLoading(false); }
@@ -92,6 +94,11 @@ export default function TeacherDashboardScreen({ navigation }) {
             {teacher?.teacher_type === 'school' ? 'Guru Sekolah' : 'Guru Privat'}
             {' · '}{(teacher?.total_students ?? students.length)} murid
           </Text>
+          {marketing && (
+            <Text style={s.feeLine}>
+              Fee {marketing.tier?.rate ?? 0}% · {marketing.tier?.paid ?? 0} direct bayar
+            </Text>
+          )}
         </View>
         <TouchableOpacity onPress={handleLogout}>
           <Text style={s.logout}>Keluar</Text>
@@ -125,6 +132,7 @@ const s = StyleSheet.create({
                  borderBottomWidth:1, borderBottomColor:'#ffffff11' },
   greeting:    { color:C.text, fontSize:20, fontWeight:'bold' },
   headerSub:   { color:C.muted, fontSize:13, marginTop:2 },
+  feeLine:     { color:C.cyan, fontSize:12, marginTop:5 },
   logout:      { color:C.muted, fontSize:14, paddingTop:4 },
   card:        { backgroundColor:C.surface, borderRadius:16, padding:18, marginBottom:14 },
   cardHeader:  { flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 },

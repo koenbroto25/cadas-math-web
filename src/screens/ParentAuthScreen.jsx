@@ -1,21 +1,28 @@
 // src/screens/ParentAuthScreen.jsx
 // Register/login orang tua + auto-link ke student setelah placement
 // Flow: RoleSelect -> ParentAuth -> ParentDashboard (via isParent di App.jsx)
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet,
          Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStore } from '../store/useStore';
-import { API_BASE } from '../services/api';
+import { API_BASE, api } from '../services/api';
 import { registerFcmToken } from '../utils/fcmToken';
 
 const C = { bg:'#0A0A12', surface:'#13131F', cyan:'#00F0FF', text:'#FFFFFF', muted:'#888899' };
 
 export default function ParentAuthScreen({ navigation, route }) {
   const student          = route?.params?.student;
-  const refCode           = route?.params?.ref;   // deep-link ?ref=XXXX
-  const { setParentAuth } = useStore();
+  const refCode           = route?.params?.ref;   // deep-link ?ref=XXXX (ID anak lama)
+  const inviteCodeParam   = route?.params?.inviteCode; // A2: ?code=CADAS-XXXX (invite baru)
+  const { setParentAuth, parentToken, parentProfile } = useStore();
+  // A2: redeem SESUDAH auth. Jika datang dengan kode tapi belum login,
+  // kode disimpan di state; auto-redeem jalan setelah finalize() sukses.
+  // ID anak dan kode invite berasal dari URL web /parent/join?code=...
+  const [inviteCode, setInviteCode] = useState(inviteCodeParam || '');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const autoRedeemRef = useRef(false);
   const insets           = useSafeAreaInsets();
   const [mode,     setMode]     = useState('register');
   const [name,     setName]     = useState('');
@@ -25,6 +32,11 @@ export default function ParentAuthScreen({ navigation, route }) {
   const [childId,  setChildId]  = useState('');
   const [loading,  setLoading]  = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [storedReferral, setStoredReferral] = useState('');
+
+  useEffect(() => {
+    AsyncStorage.getItem('referralCode').then(v => setStoredReferral(String(v || '').trim())).catch(() => {});
+  }, []);
 
   // Jika datang dari deep-link ?ref=..., isi childId otomatis
   useEffect(() => {
@@ -45,6 +57,7 @@ export default function ParentAuthScreen({ navigation, route }) {
           name: name.trim(), email: email.trim(),
           phone: phone.trim(), password,
           child_id: childId.trim() || undefined,
+          referral_code: storedReferral || undefined,
         }),
       });
       const data = await res.json();
@@ -52,6 +65,45 @@ export default function ParentAuthScreen({ navigation, route }) {
       await finalize(data.token, data.parent ?? { id: data.parent_id, display_name: name.trim() }, data.linked_children);
     } catch { Alert.alert('Error', 'Tidak bisa terhubung ke server.'); }
     finally  { setLoading(false); }
+  }
+
+  // Auto-redeem ketika parent sudah login sebelumnya dan membuka link web.
+  useEffect(() => {
+    const code = String(inviteCodeParam || '').trim().toUpperCase();
+    if (!code || !parentToken || !parentProfile?.id || autoRedeemRef.current) return;
+    autoRedeemRef.current = true;
+    api.inviteRedeem({ code }, parentToken)
+      .then((rdata) => {
+        const tr = rdata.transferred_levels > 0 ? ` + ${rdata.transferred_levels} level standby` : '';
+        Alert.alert('Berhasil!', `Anak terhubung${tr}.`);
+      })
+      .catch((error) => Alert.alert('Kode gagal dipakai', inviteErrorText({ status: error.status, message: error.message })));
+  }, [inviteCodeParam, parentToken, parentProfile?.id]);
+
+  async function handleRedeemManual() {
+    const code = String(inviteCode || '').trim().toUpperCase();
+    if (code.length < 6) return Alert.alert('', 'Masukkan kode undangan dari anak.');
+    if (!parentToken || !parentProfile?.id) {
+      Alert.alert('', 'Daftar/masuk dulu sebagai orang tua, kode akan otomatis dipakai setelah masuk.');
+      return;
+    }
+    setInviteLoading(true);
+    try {
+      const rdata = await api.inviteRedeem({ code }, parentToken);
+      const tr = rdata.transferred_levels > 0 ? ` + ${rdata.transferred_levels} level standby` : '';
+      Alert.alert('Berhasil!', `Anak terhubung${tr}.`, [
+        { text: 'Lihat Dashboard', onPress: () => navigation.replace('ParentDashboard') },
+      ]);
+    } catch (error) {
+      Alert.alert('Kode gagal dipakai', inviteErrorText({ status: error.status, message: error.message }));
+    } finally { setInviteLoading(false); }
+  }
+
+  function inviteErrorText(e) {
+    if (e?.status === 404) return 'Kode tidak ditemukan. Periksa kembali kode dari anak.';
+    if (e?.status === 409) return 'Kode sudah dipakai. Minta anak buatkan kode baru.';
+    if (e?.status === 410) return 'Kode kedaluwarsa/diganti. Minta anak buatkan kode baru.';
+    return String(e?.message || 'Coba lagi.');
   }
 
   async function handleLogin() {
@@ -72,6 +124,18 @@ export default function ParentAuthScreen({ navigation, route }) {
   }
 
   async function finalize(token, parent, linkedChildren = null) {
+    // A2: redeem SESUDAH auth — auto-redeem kode invite bila ada.
+    const pendingCode = String(inviteCodeParam || inviteCode || '').trim().toUpperCase();
+    if (pendingCode && !autoRedeemRef.current && parent?.id) {
+      autoRedeemRef.current = true;
+      try {
+        const rdata = await api.inviteRedeem({ code: pendingCode }, token);
+        const tr = rdata.transferred_levels > 0 ? ` + ${rdata.transferred_levels} level standby` : '';
+        Alert.alert('Berhasil!', `Anak terhubung${tr}.`);
+      } catch (error) {
+        Alert.alert('Kode gagal dipakai', inviteErrorText({ status: error.status, message: error.message }));
+      }
+    }
     // Persist ke AsyncStorage
     await AsyncStorage.setItem('parentToken', token);
     await AsyncStorage.setItem('parent', JSON.stringify(parent));
@@ -141,10 +205,36 @@ export default function ParentAuthScreen({ navigation, route }) {
             placeholderTextColor={C.muted} autoCapitalize="characters"
             editable={!refCode} />
           {refCode && (
-            <Text style={s.hint}>ID anak terisi otomatis dari tautan.Ubah hanya jika perlu.</Text>
+            <Text style={s.hint}>ID anak terisi otomatis dari tautan. Ubah hanya jika perlu.</Text>
           )}
+          {/* A2: redeem kode invite SESUDAH login — kolom selalu tampil agar ortu
+              yang sudah login pun bisa menempel kode dari anak. */}
+          <Text style={s.label}>Kode Undangan Anak (opsional)</Text>
+          <TextInput style={[s.input, inviteCode.length > 0 && s.inputFilled]}
+            value={inviteCode} onChangeText={(t) => setInviteCode(t.toUpperCase())}
+            placeholder={inviteCodeParam ? `Terisi dari tautan: ${inviteCodeParam}` : 'Contoh: CADAS-AB12CD34'}
+            placeholderTextColor={C.muted} autoCapitalize="characters" autoCorrect={false} />
+          {parentProfile?.id ? (
+            <TouchableOpacity style={[s.btn, s.redeemBtn, inviteLoading && { opacity: 0.6 }]}
+              onPress={handleRedeemManual} disabled={inviteLoading}>
+              {inviteLoading
+                ? <ActivityIndicator color={C.bg} />
+                : <Text style={s.btnText}>Pakai Kode Undangan</Text>}
+            </TouchableOpacity>
+          ) : inviteCodeParam ? (
+            <Text style={s.hint}>Kode tersimpan — daftar/masuk dulu, kode otomatis dipakai setelah masuk.</Text>
+          ) : null}
         </>
       )}
+
+          {inviteCodeParam && (
+            <TouchableOpacity
+              style={[s.btn, s.redeemBtn]}
+              onPress={() => navigation.replace('StudentRegister', { inviteCode: inviteCodeParam })}
+            >
+              <Text style={s.btnText}>Saya anak — daftar / masuk dengan kode ini →</Text>
+            </TouchableOpacity>
+          )}
 
       <Text style={s.label}>Email</Text>
       <TextInput style={s.input} value={email} onChangeText={setEmail}
@@ -195,6 +285,7 @@ const s = StyleSheet.create({
   btn:           { backgroundColor:C.cyan, borderRadius:16, paddingVertical:18,
                    alignItems:'center', marginTop:32 },
   btnText:       { color:C.bg, fontSize:16, fontWeight:'bold' },
+  redeemBtn:     { marginTop:12 },
 });
 
 

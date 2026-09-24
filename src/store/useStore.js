@@ -29,7 +29,7 @@ export const useStore = create((set, get) => ({
   //   - banner "Mode Demo" tampil
   //   - pilih level bebas 1-15
   demoMode:      false,
-  demoKind:      null,   // 'admin' | 'marketing' | 'client'
+  demoKind:      null,   // 'admin' | 'marketing' | 'client' | 'marketing_test'
   demoLabel:     null,   // nama untuk banner, mis. "Admin Demo" / "SMP Banjarbaru"
   demoExpiresAt: null,   // Date | null  — hanya untuk client
   demoLevel:     1,      // level yang sedang dipilih di demo

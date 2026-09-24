@@ -41,9 +41,27 @@ async function authFetch(path, options = {}, token = null) {
 
 export const api = {
   // -- Exercises -------------------------------------------------------------
-  getExercises: (level, token) => authFetch(`/api/exercises/${level}`, {}, token),
+  // studentId opsional: dipakai backend untuk enforce trial + card gate (A1).
+  getExercises: (level, token, studentId) => authFetch(
+    `/api/exercises/${level}${studentId ? `?student_id=${encodeURIComponent(studentId)}` : ''}`,
+    {}, token
+  ),
   getExercise:  (id, token)    => authFetch(`/api/exercises/item/${id}`, {}, token),
-  levelInfo:    (level)        => authFetch(`/api/exercises/level-info/${level}`),
+  levelInfo:    (level, studentId) => authFetch(
+    `/api/exercises/level-info/${level}${studentId ? `?student_id=${encodeURIComponent(studentId)}` : ''}`
+  ),
+  // Status trial level (5 soal gratis) — dipakai paywall tiap 5 soal.
+  // Respons juga memuat card_gate { required, card_shared } (A1/OQ-3).
+  trialStatus:  (level, studentId) => authFetch(
+    `/api/exercises/level-info/${level}?student_id=${encodeURIComponent(studentId)}`
+  ),
+
+  // -- Kartu ID siswa (A1 / OQ-3) --------------------------------------------
+  getStudentCard: (token) => authFetch('/api/auth/student/card', {}, token),
+  markCardShared: (token, via = 'app') => authFetch('/api/auth/student/card-shared', {
+    method: 'PATCH',
+    body: JSON.stringify({ shared_via: via }),
+  }, token),
 
   // -- Selection Rule --------------------------------------------------------
   selectVariant: (studentId, level, conceptId, extra = {}, token) =>
@@ -87,6 +105,8 @@ export const api = {
   referrerLogin:      (data)        =>
     authFetch('/api/referrer/login',    { method: 'POST', body: JSON.stringify(data) }),
   referrerMe:         (token)       => authFetch('/api/referrer/me', {}, token),
+  referrerDashboard:  (token)       => authFetch('/api/referrer/dashboard', {}, token),
+  referrerNetwork:    (token)       => authFetch('/api/referrer/network', {}, token),
   referrerEarnings:   (token, page) =>
     authFetch(`/api/referrer/earnings?page=${page || 1}`, {}, token),
   referrerClicks:     (token, page) =>
@@ -156,8 +176,27 @@ export const api = {
   adminStudents:  (token) => authFetch('/api/admin/students', {}, token),
   adminPayments:  (token) => authFetch('/api/admin/payments', {}, token),
   adminReferrers: (token) => authFetch('/api/admin/referrers', {}, token),
+  adminMarketingOverview: (token) => authFetch('/api/admin/marketing/overview', {}, token),
   adminBillingStatus: (studentId, token) =>
     authFetch(`/api/admin/billing/status/${encodeURIComponent(studentId)}`, {}, token),
+
+  // -- Finance reports ---------------------------------------------------------
+  financeSummary: (query = {}, token) => authFetch(`/api/admin/finance/summary?${new URLSearchParams(query)}`, {}, token),
+  financePayments: (query = {}, token) => authFetch(`/api/admin/finance/payments?${new URLSearchParams(query)}`, {}, token),
+  financeEarnings: (query = {}, token) => authFetch(`/api/admin/finance/earnings?${new URLSearchParams(query)}`, {}, token),
+  financeCancellations: (query = {}, token) => authFetch(`/api/admin/finance/cancellations?${new URLSearchParams(query)}`, {}, token),
+  financePayouts: (query = {}, token) => authFetch(`/api/admin/finance/payouts?${new URLSearchParams(query)}`, {}, token),
+  financeReconciliation: (query = {}, token) => authFetch(`/api/admin/finance/reconciliation?${new URLSearchParams(query)}`, {}, token),
+  financeWindows: (query = {}, token) => authFetch(`/api/admin/finance/windows?${new URLSearchParams(query)}`, {}, token),
+  financeSchedulerRuns: (query = {}, token) => authFetch(`/api/admin/finance/scheduler-runs?${new URLSearchParams(query)}`, {}, token),
+  financeRunScheduler: (data = {}, token) => authFetch('/api/admin/finance/scheduler/run', { method: 'POST', body: JSON.stringify(data) }, token),
+  financeBackfill: (token) => authFetch('/api/admin/finance/cash-ledger/backfill', { method: 'POST' }, token),
+  financeExportUrl: (type, query = {}) => `${_base}/api/admin/finance/export/${encodeURIComponent(type)}?${new URLSearchParams({ ...query, format: 'csv' })}`,
+  financeExportJson: (type, query = {}, token) => authFetch(`/api/admin/finance/export/${encodeURIComponent(type)}?${new URLSearchParams({ ...query, format: 'json' })}`, {}, token),
+  financeCreatePayout: (data, token) => authFetch('/api/admin/finance/payout-batches', { method: 'POST', body: JSON.stringify(data) }, token),
+  financeMarkTransferred: (id, data, token) => authFetch(`/api/admin/finance/payout-batches/${encodeURIComponent(id)}/transferred`, { method: 'POST', body: JSON.stringify(data) }, token),
+  financeCancelEarning: (id, data, token) => authFetch(`/api/admin/finance/earnings/${encodeURIComponent(id)}/cancel`, { method: 'POST', body: JSON.stringify(data) }, token),
+  financeSaveReconciliation: (data, token) => authFetch('/api/admin/finance/reconciliation', { method: 'POST', body: JSON.stringify(data) }, token),
 
   // -- Session Notification System (Sprint S-2 & S-3) -----------------------
   sessionStart: (data, token) =>
@@ -167,6 +206,15 @@ export const api = {
   sessionEnd: (data, token) =>
     authFetch('/api/session/end', { method: 'POST', body: JSON.stringify(data) }, token),
 
+  // -- Boss Battle (championship gate L9) ------------------------------------
+  bossStatus: (studentId, token) =>
+    authFetch(`/api/boss/status/${encodeURIComponent(studentId)}`, {}, token),
+  bossStart: (data, token) =>
+    authFetch('/api/boss/start', { method: 'POST', body: JSON.stringify(data) }, token),
+  bossHit: (data, token) =>
+    authFetch('/api/boss/hit', { method: 'POST', body: JSON.stringify(data) }, token),
+  bossAbandon: (data, token) =>
+    authFetch('/api/boss/abandon', { method: 'POST', body: JSON.stringify(data) }, token),
   // Jadwal belajar (parent set)
   scheduleSet: (data, token) =>
     authFetch('/api/schedule', { method: 'POST', body: JSON.stringify(data) }, token),
@@ -180,6 +228,61 @@ export const api = {
   // Riwayat study_sessions (focus_ratio, exit_count, dll)
   parentStudySessions: (studentId, page = 1, limit = 20, token) =>
     authFetch(`/api/parent/child/${encodeURIComponent(studentId)}/study-sessions?page=${page}&limit=${limit}`, {}, token),
+
+  // -- Midtrans QRIS (infra existing Sprint D.2) -------------------------------
+  createTransaction: (data, token) =>
+    authFetch('/api/midtrans/create-transaction', { method: 'POST', body: JSON.stringify(data) }, token),
+  // GET /api/midtrans/status/:order_id pakai verifyToken -> kirim token.
+  midtransStatus: (orderId, token) => authFetch(`/api/midtrans/status/${encodeURIComponent(orderId)}`, {}, token),
+  midtransCheckLive: (orderId, token) =>
+    authFetch(`/api/midtrans/check-live/${encodeURIComponent(orderId)}`, {}, token),
+
+  // -- Auth & Payment (from payments.js)
+  getAccessSummary: (studentId, token) =>
+    authFetch(`/api/payments/status/${encodeURIComponent(studentId)}`, {}, token),
+
+  // 2. Midtrans + purchase + payment records
+  createQrisPurchase: (data, token) =>
+    authFetch('/api/payments/qris', { method: 'POST', body: JSON.stringify(data) }, token),
+  paymentStatus: (orderId, token) =>
+    authFetch(`/api/midtrans/status/${encodeURIComponent(orderId)}`, {}, token),
+
+  // -- Secure partner invites ------------------------------------------------
+  partnerInviteRegister: (data) =>
+    authFetch('/api/referrer/register-via-invite', { method: 'POST', body: JSON.stringify(data) }),
+  partnerInvitesCreate: (data, token) =>
+    authFetch('/api/referrer/team-invites', { method: 'POST', body: JSON.stringify(data) }, token),
+  partnerInvitesList: (token) =>
+    authFetch('/api/referrer/team-invites', {}, token),
+  partnerInviteRevoke: (id, token) =>
+    authFetch(`/api/referrer/team-invites/${encodeURIComponent(id)}/revoke`, { method: 'POST' }, token),
+  adminPartnerInviteCreate: (data, token) =>
+    authFetch('/api/admin/partner-invites', { method: 'POST', body: JSON.stringify(data) }, token),
+  adminPartnerInviteList: (token) =>
+    authFetch('/api/admin/partner-invites', {}, token),
+  adminPartnerInviteRevoke: (id, token) =>
+    authFetch(`/api/admin/partner-invites/${encodeURIComponent(id)}/revoke`, { method: 'POST' }, token),
+
+  testAccountRedeem: (code) =>
+    authFetch('/api/auth/test-account/redeem', { method: 'POST', body: JSON.stringify({ code }) }),
+  testAccountsCreate: (data, token) =>
+    authFetch('/api/referrer/test-accounts', { method: 'POST', body: JSON.stringify(data || {}) }, token),
+  testAccountsList: (token) =>
+    authFetch('/api/referrer/test-accounts', {}, token),
+  testAccountRevoke: (id, token) =>
+    authFetch(`/api/referrer/test-accounts/${encodeURIComponent(id)}/revoke`, { method: 'POST' }, token),
+  adminTestAccountCreate: (data, token) =>
+    authFetch('/api/admin/test-accounts', { method: 'POST', body: JSON.stringify(data || {}) }, token),
+  adminTestAccountList: (token) =>
+    authFetch('/api/admin/test-accounts', {}, token),
+  adminTestAccountRevoke: (id, token) =>
+    authFetch(`/api/admin/test-accounts/${encodeURIComponent(id)}/revoke`, { method: 'POST' }, token),
+
+  // -- Invite ortu (A2: QR + link web, redeem pasca-login ortu) ----------------
+  inviteCreate: (data, token) =>
+    authFetch('/api/payments/invite', { method: 'POST', body: JSON.stringify(data) }, token),
+  inviteRedeem: (data, token) =>
+    authFetch('/api/payments/invite/redeem', { method: 'POST', body: JSON.stringify(data) }, token),
 
   // Ringkasan mingguan
   parentWeeklySummary: (studentId, token) =>

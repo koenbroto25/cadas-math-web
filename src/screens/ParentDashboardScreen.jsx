@@ -268,6 +268,12 @@ export default function ParentDashboardScreen({ navigation }) {
           <TouchableOpacity style={s.addBtn} onPress={() => setShowAdd(true)}>
             <Text style={s.addBtnText}>+ Tambah Anak</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={s.inviteBtn} onPress={() => navigation.navigate('ParentInvite')}>
+            <Text style={s.inviteBtnText}>Kirim Link ke Anak</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.inviteBtn} onPress={() => navigation.navigate('UpgradePaywall')}>
+            <Text style={s.inviteBtnText}>Beli Paket QRIS</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout}>
             <Text style={s.logout}>Keluar</Text>
           </TouchableOpacity>
@@ -442,6 +448,9 @@ const s = StyleSheet.create({
                       borderRadius:20, paddingHorizontal:12, paddingVertical:5,
                       marginBottom:6 },
   addBtnText:       { color:C.cyan, fontSize:12, fontWeight:'bold' },
+  inviteBtn:         { backgroundColor:C.surface, borderWidth:1, borderColor:C.cyan,
+                        borderRadius:20, paddingHorizontal:12, paddingVertical:5, marginBottom:6 },
+  inviteBtnText:     { color:C.cyan, fontSize:12, fontWeight:'bold' },
   emptyAddBtn:      { backgroundColor:C.cyan + '22', borderWidth:1, borderColor:C.cyan,
                       borderRadius:12, paddingHorizontal:16, paddingVertical:10, marginBottom:10 },
   mergeLink:        { alignItems:'center', paddingVertical:14 },

@@ -20,6 +20,7 @@ import HintPanel from '../components/HintPanel';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { SFX, pickBgmTrack } from '../audio/audioCatalog';
 import { targetMsFor, allowsCorrectFastSfx } from '../constants/levelTargets';
+import PlacementCardModal from './PlacementCardModal';
 
 const COLORS = {
   bg:      '#0A0A12',
@@ -56,6 +57,7 @@ export default function PracticeScreen({ navigation }) {
     setExercises, nextExercise, recordAnswer,
     streak, botState, setBotState, botMode,
     getConfidenceScore, student, demoMode, adminQaMode,
+    setLevelAccess,
   } = useStore();
 
   const {
@@ -74,6 +76,13 @@ export default function PracticeScreen({ navigation }) {
   const [hintLevel,  setHintLevel]  = useState(0);
   const [startTime,  setStartTime]  = useState(Date.now());
   const [fastTrack,  setFastTrack]  = useState(false);
+  const [bossOffer,   setBossOffer]  = useState(false);
+
+  // -- A1 / OQ-3: gate kartu ID ----------------------------------------------
+  // cardGate true → layar latihan diganti modal kartu ID (tidak bisa skip).
+  const [cardGate,      setCardGate]      = useState(false);
+  const [cardStudent,   setCardStudent]   = useState(null);
+  const [cardGateError, setCardGateError] = useState(false);
 
   const webviewRef      = useRef(null);
   const soundRef        = useRef(null);
@@ -111,6 +120,79 @@ export default function PracticeScreen({ navigation }) {
 
   const exercise = exercises[currentIndex];
 
+  // -- Paywall check setiap 5 soal -------------------------------------------
+  // Sumber kebenaran akses: middleware/level-access.js, dibaca via
+  //   GET /api/exercises/level-info/:level?student_id=...
+  //     level_access: 'trial' | 'trial_exhausted' | 'basic' | 'premium' | 'locked'
+  //     trial_remaining: sisa kuota 5 soal gratis (TRIAL_LIMIT di exercises.js)
+  // Aturan: siswa basic/premium tidak pernah kena paywall. Siswa trial hanya
+  // boleh 5 soal — saat kuota habis (atau level belum dibuka) tampilkan paywall.
+  useEffect(() => {
+    if (!student?.id || demoMode || adminQaMode) return;
+    if (currentIndex <= 0 || currentIndex % 5 !== 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const info = await api.trialStatus(currentLevel, student.id);
+        if (cancelled || !info) return;
+        const access    = info.level_access;
+        const remaining = info.trial_remaining ?? 0;
+        const isPaid    = access === 'basic' || access === 'premium';
+        if (isPaid) return;
+        if (access === 'locked' || remaining <= 0) {
+          setLevelAccess(access === 'locked' ? 'locked' : 'trial_exhausted');
+          navigation.navigate('UpgradePaywall', {
+            studentId: student.id,
+            placedLevel: currentLevel,
+          });
+        }
+      } catch (e) {
+        console.warn('[paywall]', e?.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentIndex, currentLevel, student?.id]);
+
+  // -- A1 / OQ-3: gate kartu ID ----------------------------------------------
+  // Siswa baru wajib membagikan/mengunduh kartu ID sebelum latihan
+  // (students.card_shared, di-set oleh PlacementCardModal / SettingsScreen).
+  // Sumber info gate: level-info.card_gate (backend middleware/card-gate.js).
+  // Demo & admin QA dikecualikan supaya presentasi/QA tidak terblokir.
+  const openCardGate = useCallback(async () => {
+    setCardGate(true);
+    setCardGateError(false);
+    try {
+      const token = useStore.getState().authToken;
+      if (!token) return;
+      const card = await api.getStudentCard(token);
+      if (isMountedRef.current) setCardStudent(card);
+    } catch (e) {
+      console.warn('[cardGate:open]', e?.message);
+      if (isMountedRef.current) setCardGateError(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!student?.id || demoMode || adminQaMode) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const info = await api.trialStatus(currentLevel, student.id);
+        if (!cancelled && info?.card_gate?.required) openCardGate();
+      } catch (e) {
+        console.warn('[cardGate:check]', e?.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentLevel, student?.id, demoMode, adminQaMode, openCardGate]);
+
+  // Setelah aksi kartu selesai (modal sudah PATCH card-shared) → muat soal lagi
+  function handleCardGateDone() {
+    setCardGate(false);
+    setCardGateError(false);
+    loadExercises({ silent: true });
+  }
+
   // -- Sprint S-2: mulai sesi di backend -------------------------------------
   async function startStudySession() {
     if (!student?.id || demoMode || adminQaMode) return;
@@ -123,7 +205,12 @@ export default function PracticeScreen({ navigation }) {
       exitCountRef.current     = 0;
       sessionEndedRef.current  = false;
     } catch (e) {
-      console.warn('[studySession/start]', e?.message);
+      // A1 / OQ-3: backend menolak karena kartu ID belum dibagikan
+      if (e?.data?.error === 'CARD_NOT_SHARED') {
+        openCardGate();
+      } else {
+        console.warn('[studySession/start]', e?.message);
+      }
     }
   }
 
@@ -293,17 +380,25 @@ export default function PracticeScreen({ navigation }) {
     playSfx(SFX.SESSION_START);
   }, [loading, exercise?.id]);
 
-  async function loadExercises() {
+  async function loadExercises({ silent = false } = {}) {
     try {
       setLoading(true);
-      const data = await api.getExercises(currentLevel);
+      const token = useStore.getState().authToken;
+      const data  = await api.getExercises(currentLevel, token, student?.id);
       setExercises(data.exercises);
-      setTimeout(() => playBotAudio(welcomeSound(currentLevel, sessionCountRef.current > 0), false), 700);
+      if (!silent) {
+        setTimeout(() => playBotAudio(welcomeSound(currentLevel, sessionCountRef.current > 0), false), 700);
+      }
       // Mulai sesi tracking setelah soal loaded
       await startStudySession();
       startHeartbeat();
-    } catch {
-      Alert.alert('Error', 'Gagal memuat soal. Cek koneksi internet.');
+    } catch (err) {
+      // A1 / OQ-3: kartu ID belum dibagikan → buka modal kartu, bukan alert error
+      if (err?.data?.error === 'CARD_NOT_SHARED') {
+        openCardGate();
+      } else {
+        Alert.alert('Error', 'Gagal memuat soal. Cek koneksi internet.');
+      }
     } finally {
       setLoading(false);
       setStartTime(Date.now());
@@ -503,6 +598,20 @@ export default function PracticeScreen({ navigation }) {
       );
     }
 
+    // Boss battle offer — level 9 saja, sekali per mount, setelah streak kuat
+    if (currentLevel === 9 && !bossOffer && newStreak >= 9) {
+      setBossOffer(true);
+      Alert.alert(
+        '⚔️ Boss Battle!',
+        'Level 9 adalah championship gate. Berani lawan Boss sekarang?',
+        [
+          { text: 'Nanti dulu', style: 'cancel' },
+          { text: 'Lawan Boss!', onPress: () =>
+              navigation.navigate('BossBattle', { level: 9 }) },
+        ]
+      );
+    }
+
     nextTimerRef.current = setTimeout(async () => {
       if (!isMountedRef.current) return;
       if (currentIndex < exercises.length - 1) {
@@ -539,6 +648,10 @@ export default function PracticeScreen({ navigation }) {
     const didLevelUp   = sessionResp?.level_up     ?? false;
     const newLevelVal  = sessionResp?.new_level    ?? currentLevel;
     const sessionCount = sessionResp?.session_count ?? 0;
+    // Trial habis (5 soal, TRIAL_LIMIT di exercises.js) — sinkronkan badge akses
+    // di store supaya Home/SessionResult langsung menampilkan gate upgrade.
+    const trialExhausted = sessionResp?.trial_exhausted ?? false;
+    if (trialExhausted) useStore.getState().setLevelAccess('trial_exhausted');
     if (didLevelUp) useStore.getState().setLevel(newLevelVal);
     useStore.getState().setLevelSessionCount(currentLevel, sessionCount);
     if (didLevelUp) useStore.getState().setBgmTrack(null);
@@ -559,6 +672,7 @@ export default function PracticeScreen({ navigation }) {
       levelUp:        didLevelUp,
       newLevel:       newLevelVal,
       sessionCount,
+      trialExhausted,
       avgTimeMs: sessionResults.length > 0
         ? Math.round(
             sessionResults.filter(r => r.timeMs > 0)
@@ -715,6 +829,37 @@ export default function PracticeScreen({ navigation }) {
   `;
 
   const exerciseUrl = exercise ? `${BASE_URL}/exercises/${exercise.id}.html` : null;
+
+  // A1 / OQ-3: kartu ID belum dibagikan → latihan diblokir dengan modal kartu.
+  // Modal hanya bisa ditutup setelah 1 aksi (share WA / download PDF), jadi
+  // gate ini tidak bisa di-skip dari sisi UI.
+  if (cardGate) {
+    const cardTarget = cardStudent || student;
+    return (
+      <View style={[styles.center, { backgroundColor: COLORS.bg }]}>
+        <Text style={styles.loadText}>📇 Bagikan Kartu ID dulu ya…</Text>
+        <Text style={[styles.loadText, {
+          fontSize: 13, color: COLORS.muted, textAlign: 'center',
+          paddingHorizontal: 28, marginTop: 10,
+        }]}>
+          Kartu ID dipakai orang tua untuk memantau progres dan mengaktifkan akun lengkapmu.
+        </Text>
+        {(!cardTarget?.display_id || cardGateError) && (
+          <TouchableOpacity style={{ marginTop: 20 }} onPress={openCardGate}>
+            <Text style={{ color: COLORS.cyan, fontWeight: 'bold' }}>Coba lagi</Text>
+          </TouchableOpacity>
+        )}
+        {cardTarget?.display_id && (
+          <PlacementCardModal
+            visible
+            student={cardTarget}
+            placedLevel={currentLevel}
+            onDone={handleCardGateDone}
+          />
+        )}
+      </View>
+    );
+  }
 
   if (loading) {
     return (

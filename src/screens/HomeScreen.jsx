@@ -273,7 +273,7 @@ export default function HomeScreen({ navigation }) {
         <TouchableOpacity
           style={s.upgradeBanner}
           activeOpacity={0.85}
-          onPress={() => navigation.navigate('UpgradePaywall', { level: currentLevel })}>
+          onPress={() => navigation.navigate('UpgradePaywall', { placedLevel: currentLevel, studentId: storeStudent?.id })}>
           <Text style={s.upgradeTitle}>🔒 Trial Habis</Text>
           <Text style={s.upgradeDesc}>
             Upgrade untuk lanjut latihan di Level {currentLevel}
@@ -301,7 +301,7 @@ export default function HomeScreen({ navigation }) {
         activeOpacity={0.88}
         onPress={() => {
           if (isLocked) {
-            navigation.navigate('UpgradePaywall', { level: currentLevel });
+            navigation.navigate('UpgradePaywall', { placedLevel: currentLevel, studentId: storeStudent?.id });
           } else {
             navigation.navigate('Practice');
           }

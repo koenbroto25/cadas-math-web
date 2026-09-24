@@ -10,7 +10,7 @@ import StudentIdCard from '../components/StudentIdCard';
 
 const C = { bg: '#0A0A12', surface: '#13131F', cyan: '#00F0FF', text: '#FFFFFF', muted: '#888899', error: '#FF4466' };
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ navigation }) {
   const { student, clearAuth, authToken } = useStore();
   const insets = useSafeAreaInsets();
   const [teacherCode, setTeacherCode] = React.useState('');
@@ -120,6 +120,11 @@ export default function SettingsScreen() {
         <Text style={s.cardLabel}>Level Saat Ini</Text>
         <Text style={s.cardValue}>Level {student?.current_level || student?.trial_level || 1}</Text>
       </View>
+
+      {/* A2: buat/lihat kode invite kapan saja dari Settings. */}
+      <TouchableOpacity style={s.idCardBtn} onPress={() => navigation?.navigate('InviteParent')}>
+        <Text style={s.idCardBtnText}>📤 Ajak Orang Tua (QR / Kode)</Text>
+      </TouchableOpacity>
 
       <View style={s.card}>
         <Text style={s.cardLabel}>Hubungkan ke Guru</Text>

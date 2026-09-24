@@ -35,6 +35,7 @@ export default function PlacementResultScreen({ navigation, route }) {
   const {
     placedLevel = 1, prerequisiteSignals, speedEmphasis,
     totalAnswers = 0, correctAnswers = 0, student,
+    levelBreakdown = [], earlyStopped = false, earlyStopReason = null, stats = null,
   } = route?.params ?? {};
 
   const setPlacementDone = useStore((st) => st.setPlacementDone);
@@ -43,9 +44,20 @@ export default function PlacementResultScreen({ navigation, route }) {
   const stopSpeaking = useStore((st) => st.stopSpeaking);
   const visemeData = useStore((st) => st.visemeData);
   const [modalVisible, setModalVisible] = useState(true);
+  // A1 / OQ-3: kartu ID wajib dibagikan sebelum latihan (sumber: backend
+  // students.card_shared). Tidak ada lagi tombol "lewati".
+  const [cardShared, setCardShared] = useState(student?.card_shared === true);
   const insets    = useSafeAreaInsets();
-  const accuracy  = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : null;
+  const accuracy  = totalAnswers > 0
+    ? Math.round((correctAnswers / totalAnswers) * 100)
+    : (stats && stats.answered > 0 ? Math.round((stats.correct / stats.answered) * 100) : null);
   const levelName = LEVEL_NAMES[placedLevel] ?? `Level ${placedLevel}`;
+  const hasBreakdown = Array.isArray(levelBreakdown) && levelBreakdown.length > 0;
+
+  // Catatan early stop untuk konteks hasil
+  const earlyStopNote = earlyStopped && earlyStopReason === 'early_stop_3_consecutive_fails'
+    ? `Tes dihentikan lebih awal (3 soal tidak berhasil berturut-turut)${stats?.stoppedAtQuestion ? ` — berhenti di soal ke-${stats.stoppedAtQuestion}` : ''}. Hasil ini sudah cukup untuk menentukan level yang tepat.`
+    : null;
 
   // usePracticePlayer: satu player, ganti source saat perlu
   const player       = usePracticePlayer();
@@ -151,13 +163,39 @@ export default function PlacementResultScreen({ navigation, route }) {
     setPlacementDone(true);
   }
 
+  // A1 / OQ-3: status kartu dibaca ulang dari backend (bukan hanya params),
+  // supaya tombol "Mulai belajar" hanya muncul setelah card_shared = true.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = useStore.getState().authToken;
+        if (!token) return;
+        const card = await api.getStudentCard(token);
+        if (!cancelled && card) setCardShared(card.card_shared === true);
+      } catch (_) {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  async function handleCardModalDone() {
+    setModalVisible(false);
+    try {
+      const token = useStore.getState().authToken;
+      if (token) {
+        const card = await api.getStudentCard(token);
+        setCardShared(card?.card_shared === true);
+      }
+    } catch (_) {}
+  }
+
   return (
     <>
       <PlacementCardModal
         visible={modalVisible}
         student={student}
         placedLevel={placedLevel}
-        onDone={() => setModalVisible(false)}
+        onDone={handleCardModalDone}
       />
       <ScrollView
         style={s.scroll}
@@ -180,6 +218,31 @@ export default function PlacementResultScreen({ navigation, route }) {
         {student?.name ? `${student.name} cocok` : 'Cocok'} mulai dari Level {placedLevel}.{' '}
         Latihan dimulai dari soal yang pas — tidak terlalu mudah, tidak terlalu sulit.
       </Text>
+
+      {earlyStopNote && (
+        <View style={s.noteBox}>
+          <Text style={s.noteText}>{earlyStopNote}</Text>
+        </View>
+      )}
+
+      {hasBreakdown && (
+        <View style={s.breakdownBox}>
+          <Text style={s.breakdownTitle}>Rincian per Level</Text>
+          {levelBreakdown.map((lb) => (
+            <View key={lb.level} style={s.breakdownRow}>
+              <Text style={s.breakdownLevel}>Lv {lb.level}</Text>
+              <Text style={[s.breakdownStat, lb.passed && s.breakdownPass]}>
+                {lb.reason === 'not_tested'
+                  ? '— tidak diuji'
+                  : `${lb.correct}/${lb.questions_given} benar · ${lb.accuracy != null ? Math.round(lb.accuracy * 100) : 0}% · ${(lb.avg_time_ms / 1000).toFixed(1)}s`}
+              </Text>
+              <Text style={[s.breakdownMark, lb.passed ? s.breakdownPass : s.breakdownFail]}>
+                {lb.reason === 'not_tested' ? '' : lb.passed ? '✓' : '✗'}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {speedEmphasis === 'high' && (
         <View style={s.noteBox}>
@@ -205,9 +268,24 @@ export default function PlacementResultScreen({ navigation, route }) {
         <Text style={s.btnPrimaryText}>Daftar Akun Orang Tua →</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={s.btnGhost} onPress={skipParent}>
-        <Text style={s.btnGhostText}>Lewati dulu — mulai belajar langsung</Text>
+      {/* A2: Pintu 2 — ajak ortu via QR/link web (setelah kartu ID, agar gate A1 tetap tertib).
+          InviteParent butuh student di store — tersedia setelah placement. */}
+      <TouchableOpacity style={s.btnGhost} onPress={() => navigation.navigate('InviteParent')}>
+        <Text style={s.btnGhostText}>📤 Ajak Ortu via QR / Link</Text>
       </TouchableOpacity>
+
+      {/* A1 / OQ-3: kartu ID wajib sebelum latihan — tombol "lewati" dihapus.
+          Jika belum ada aksi share/download, tombol membuka kembali modal
+          kartu; "Mulai belajar" hanya muncul setelah card_shared = true. */}
+      {!cardShared ? (
+        <TouchableOpacity style={s.btnGhost} onPress={() => setModalVisible(true)}>
+          <Text style={s.btnGhostText}>📇 Bagikan Kartu ID — wajib sebelum latihan</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity style={s.btnGhost} onPress={skipParent}>
+          <Text style={s.btnGhostText}>Mulai belajar →</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
     </>
   );
@@ -225,6 +303,14 @@ const s = StyleSheet.create({
   desc:           { color: C.text, fontSize: 16, lineHeight: 24, marginBottom: 16, textAlign: 'center' },
   noteBox:        { backgroundColor: C.surface, borderRadius: 12, padding: 16, marginBottom: 12 },
   noteText:       { color: C.muted, fontSize: 14, lineHeight: 20 },
+  breakdownBox:   { backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#00F0FF22' },
+  breakdownTitle: { color: C.cyan, fontSize: 14, fontWeight: 'bold', marginBottom: 10 },
+  breakdownRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+  breakdownLevel: { color: C.text, fontSize: 13, fontWeight: 'bold', width: 52 },
+  breakdownStat:  { color: C.muted, fontSize: 13, flex: 1 },
+  breakdownMark:  { fontSize: 14, fontWeight: 'bold', width: 20, textAlign: 'right' },
+  breakdownPass:  { color: '#4ADE80' },
+  breakdownFail:  { color: '#FF5252' },
   ctaLabel:       { color: C.muted, fontSize: 13, textAlign: 'center', marginTop: 24, marginBottom: 12 },
   btnPrimary:     { backgroundColor: C.cyan, borderRadius: 16, paddingVertical: 18, alignItems: 'center', marginBottom: 12 },
   btnPrimaryText: { color: C.bg, fontSize: 16, fontWeight: 'bold' },

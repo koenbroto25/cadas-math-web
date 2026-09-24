@@ -35,6 +35,7 @@ export default function SessionResultScreen({ navigation, route }) {
     avgTimeMs      = 0,
     drillSuggested = false,
     levelAccess    = 'trial',
+    trialExhausted = false,
   } = route?.params ?? {};
 
   const store   = useStore();
@@ -45,7 +46,11 @@ export default function SessionResultScreen({ navigation, route }) {
   const secs    = Math.floor((timeTotalMs % 60000) / 1000);
   const timeStr = timeTotalMs > 0 ? `${mins}m ${secs}s` : '—';
 
-  const newLevelNeedsPay = levelUp && (levelAccess === 'locked' || levelAccess === 'trial');
+  // Paywall muncul saat: (a) naik level tapi level baru belum dibayar, atau
+  // (b) kuota trial 5 soal (TRIAL_LIMIT) habis — dikirim PracticeScreen.
+  const newLevelNeedsPay =
+    trialExhausted || (levelUp && (levelAccess === 'locked' || levelAccess === 'trial'));
+  const payLevel = levelUp ? newLevel : displayLevel;
 
   const { setBotState, startSpeaking, stopSpeaking } = store;
   const cancelledRef = useRef(false);
@@ -190,22 +195,35 @@ export default function SessionResultScreen({ navigation, route }) {
       {newLevelNeedsPay && (
         <View style={s.payBox}>
           <Text style={s.payEmoji}>🔓</Text>
-          <Text style={s.payTitle}>Selamat naik ke Level {newLevel}!</Text>
+          <Text style={s.payTitle}>
+            {levelUp ? `Selamat naik ke Level ${newLevel}!` : `Trial Level ${displayLevel} sudah habis`}
+          </Text>
           <Text style={s.payDesc}>
-            Kamu mendapat 5 soal preview gratis di Level {newLevel}.{'\n'}
+            {levelUp
+              ? `Kamu mendapat 5 soal preview gratis di Level ${newLevel}.`
+              : `Kuota 5 soal gratis di Level ${displayLevel} sudah terpakai.`}{'\n'}
             Untuk akses penuh, upgrade sekarang.
           </Text>
           <TouchableOpacity
             style={s.payBtn}
-            onPress={() => navigation.navigate('UpgradePaywall', { level: newLevel })}
+            onPress={() => navigation.navigate('UpgradePaywall', { placedLevel: payLevel, studentId: store.student?.id })}
           >
-            <Text style={s.payBtnText}>🚀 Upgrade Level {newLevel} — Rp40.000</Text>
+            <Text style={s.payBtnText}>🚀 Upgrade Level {payLevel} — Rp40.000</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={s.payBtnGhost}
             onPress={() => navigation.navigate('Main')}
           >
-            <Text style={s.payBtnGhostText}>Coba 5 soal preview dulu</Text>
+            <Text style={s.payBtnGhostText}>
+              {levelUp ? 'Coba 5 soal preview dulu' : 'Kembali ke Beranda'}
+            </Text>
+          </TouchableOpacity>
+          {/* A2: trial habis — minta ortu redeem kode agar kredit pindah. */}
+          <TouchableOpacity
+            style={s.payBtnGhost}
+            onPress={() => navigation.navigate('InviteParent')}
+          >
+            <Text style={s.payBtnGhostText}>📤 Minta Ortu Hubungkan (QR / Kode)</Text>
           </TouchableOpacity>
         </View>
       )}

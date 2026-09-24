@@ -1,6 +1,6 @@
 // src/screens/StudentRegisterScreen.jsx — Auth Baru v3
 // Perubahan: + field parent_phone, + login via display_id (B7KM), tampilkan ID setelah daftar
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, Alert, ActivityIndicator, StatusBar, ScrollView,
@@ -8,7 +8,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStore } from '../store/useStore';
-import { API_BASE } from '../services/api';
+import { API_BASE, api } from '../services/api';
 
 const C = {
   bg:      '#0A0A12', surface: '#13131F', card: '#1A1A2E',
@@ -106,6 +106,7 @@ const suc = StyleSheet.create({
 export default function StudentRegisterScreen({ navigation, route }) {
   const mode    = route?.params?.mode || 'register';
   const isLogin = mode === 'login';
+  const inviteCode = String(route?.params?.inviteCode || '').trim().toUpperCase();
   const { setAuth, setStudent, setPlacementDone } = useStore();
   const insets = useSafeAreaInsets();
 
@@ -115,6 +116,12 @@ export default function StudentRegisterScreen({ navigation, route }) {
   const [displayId,   setDisplayId]   = useState('');  // login field
   const [loading,     setLoading]     = useState(false);
   const [newStudent,  setNewStudent]  = useState(null); // setelah register sukses
+  const [storedReferral, setStoredReferral] = useState('');
+  const referralCode = String(route?.params?.referralCode || '').trim() || storedReferral;
+
+  useEffect(() => {
+    AsyncStorage.getItem('referralCode').then(v => setStoredReferral(String(v || '').trim())).catch(() => {});
+  }, []);
 
   // ── Register ─────────────────────────────────────────────────────────────────
   async function handleRegister() {
@@ -130,6 +137,7 @@ export default function StudentRegisterScreen({ navigation, route }) {
           name:         name.trim(),
           kelas,
           parent_phone: parentPhone.trim() || undefined,
+          referral_code: referralCode || undefined,
         }),
       });
       const data = await res.json();
@@ -144,6 +152,14 @@ export default function StudentRegisterScreen({ navigation, route }) {
       setAuth(data.token, 'student');
       setStudent(data.student);
       setPlacementDone(false);
+
+      if (inviteCode) {
+        try {
+          await api.inviteRedeem({ code: inviteCode }, data.token);
+        } catch (error) {
+          Alert.alert('Link diterima, kode belum tersambung', error.message || 'Coba masukkan kode lagi dari link.');
+        }
+      }
 
       // Tampilkan layar sukses dengan display_id sebelum lanjut ke placement
       setNewStudent(data.student);
@@ -187,6 +203,14 @@ export default function StudentRegisterScreen({ navigation, route }) {
       setAuth(data.token, 'student');
       setStudent(data.student);
       setPlacementDone(done);
+
+      if (inviteCode) {
+        try {
+          await api.inviteRedeem({ code: inviteCode }, data.token);
+        } catch (error) {
+          Alert.alert('Link diterima, kode belum tersambung', error.message || 'Coba masukkan kode lagi dari link.');
+        }
+      }
     } catch {
       Alert.alert('Error', 'Tidak bisa terhubung ke server.');
     } finally { setLoading(false); }

@@ -64,6 +64,10 @@ export default function PlacementCardModal({ visible, student, placedLevel, onDo
       await Linking.openURL(`https://wa.me/?text=${waMessage}`);
       markShared('whatsapp');
     }
+    // A1 / OQ-3: share WA juga aksi sah (ID + link ortu terkirim ke orang tua),
+    // dan backend sudah menandai card_shared=true. Tanpa ini, siswa yang
+    // memakai jalur WA akan terkunci di gate kartu (tombol Lanjutkan mati).
+    setActed(true);
   }, [waMessage, displayId]);
 
   // ── Download PDF ─────────────────────────────────────────────────────────────
@@ -95,7 +99,9 @@ export default function PlacementCardModal({ visible, student, placedLevel, onDo
     await Clipboard.setStringAsync(parentLink);
     Alert.alert('✅ Tersalin!', `Link orang tua sudah disalin:\n${parentLink}`);
     markShared('copy');
-    // WA/copy tidak unlock tombol Lanjutkan — hanya PDF yang wajib (D2)
+    // A1 / OQ-3 FINAL: copy link juga aksi sah (konsisten dengan backend
+    // card_shared=true) supaya siswa tidak terkunci di gate kartu.
+    setActed(true);
   }, [parentLink]);
 
   // ── Mark card_shared di backend ───────────────────────────────────────────────

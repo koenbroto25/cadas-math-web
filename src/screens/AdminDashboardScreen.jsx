@@ -35,20 +35,32 @@ export default function AdminDashboardScreen({ navigation }) {
   } = useStore();
 
   const [stats,     setStats]     = useState(null);
+  const [marketing, setMarketing] = useState(null);
   const [loading,   setLoading]   = useState(true);
   const [qaLevel,   setQaLevel]   = useState(1);
   const [passcodes, setPasscodes] = useState([]);
   const [pcLoading, setPcLoading] = useState(false);
   const [pcLabel,   setPcLabel]   = useState('');
+  const [invites,   setInvites]   = useState([]);
+  const [testAccounts, setTestAccounts] = useState([]);
+  const [testCode, setTestCode] = useState(null);
+  const [testOwner, setTestOwner] = useState('');
+  const [testLabel, setTestLabel] = useState('');
+  const [testBusy, setTestBusy] = useState(false);
+  const [inviteTarget, setInviteTarget] = useState('school');
+  const [inviteHead, setInviteHead] = useState('');
+  const [inviteBusy, setInviteBusy] = useState(false);
 
   async function loadStats() {
     setLoading(true);
     try {
-      const [students, referrers, payments] = await Promise.all([
+      const [students, referrers, payments, marketingOverview] = await Promise.all([
         api.adminStudents(adminToken).catch(() => null),
         api.adminReferrers(adminToken).catch(() => null),
         api.adminPayments(adminToken).catch(() => null),
+        api.adminMarketingOverview(adminToken).catch(() => null),
       ]);
+      setMarketing(marketingOverview);
       // Bentuk respons per endpoint berbeda-beda (lihat routes/admin.js):
       //   students  -> { total, students: [] }
       //   referrers -> { referrers: [] }
@@ -77,9 +89,51 @@ export default function AdminDashboardScreen({ navigation }) {
     finally { setPcLoading(false); }
   }
 
-  useEffect(() => { loadStats(); loadPasscodes(); }, []);
+  useEffect(() => { loadStats(); loadPasscodes(); loadInvites(); loadTestAccounts(); }, []);
 
-  // QA Mode: full access semua level (premium, tanpa timer, tanpa simpan sesi)
+  async function loadTestAccounts() {
+    try { const d = await api.adminTestAccountList(adminToken); setTestAccounts(d.test_accounts || []); }
+    catch (_) { setTestAccounts([]); }
+  }
+
+  async function handleCreateTestAccount() {
+    setTestBusy(true);
+    try {
+      const d = await api.adminTestAccountCreate({ owner_referrer_id: testOwner.trim() || undefined, label: testLabel.trim() || undefined }, adminToken);
+      setTestCode(d); setTestOwner(''); setTestLabel(''); await loadTestAccounts();
+    } catch (e) { Alert.alert('Gagal', e.message || 'Tidak bisa membuat Test ID.'); }
+    finally { setTestBusy(false); }
+  }
+
+  async function handleRevokeTestAccount(id) {
+    const ok = await confirmWeb('Cabut Test ID ini?', 'ID tidak dapat dipakai lagi.');
+    if (!ok) return;
+    try { await api.adminTestAccountRevoke(id, adminToken); await loadTestAccounts(); }
+    catch (e) { Alert.alert('Gagal', e.message || 'Tidak bisa mencabut Test ID.'); }
+  }
+
+  async function loadInvites() {
+    try { const d = await api.adminPartnerInviteList(adminToken); setInvites(d.invites || []); }
+    catch (_) { setInvites([]); }
+  }
+
+  async function handleCreateInvite() {
+    setInviteBusy(true);
+    try {
+      await api.adminPartnerInviteCreate({ target_type: inviteTarget, inviter_referrer_id: inviteHead.trim() || undefined, expires_hours: 72 }, adminToken);
+      setInviteHead(''); await loadInvites();
+    } catch (e) { Alert.alert('Gagal', e?.message || 'Tidak bisa membuat invite.'); }
+    finally { setInviteBusy(false); }
+  }
+
+  async function handleRevokeInvite(id) {
+    const ok = await confirmWeb('Cabut invite ini?', 'Invite tidak dapat dipakai lagi.');
+    if (!ok) return;
+    try { await api.adminPartnerInviteRevoke(id, adminToken); await loadInvites(); }
+    catch (e) { Alert.alert('Gagal', e?.message || 'Tidak bisa mencabut invite.'); }
+  }
+
+
   function startQa(level) {
     setLevel(level);
     setLevelAccess('premium');
@@ -155,6 +209,28 @@ export default function AdminDashboardScreen({ navigation }) {
         </View>
       )}
 
+      <View style={s.statsRow}>
+        <View style={s.statCard}>
+          <Text style={s.statValue}>{marketing?.earnings?.ready_idr ?? '-'}</Text>
+          <Text style={s.statLabel}>Fee Ready</Text>
+        </View>
+        <View style={s.statCard}>
+          <Text style={s.statValue}>{marketing?.earnings?.transferred_idr ?? '-'}</Text>
+          <Text style={s.statLabel}>Fee Transferred</Text>
+        </View>
+        <View style={s.statCard}>
+          <Text style={s.statValue}>{marketing?.payments?.confirmed_idr ?? '-'}</Text>
+          <Text style={s.statLabel}>Revenue Confirmed</Text>
+        </View>
+      </View>
+      <View style={s.card}>
+        <Text style={s.cardNote}>Fee v2 core · normal Rp{marketing?.earnings?.normal_idr ?? 0} · catch-up Rp{marketing?.earnings?.catchup_idr ?? 0}</Text>
+        <Text style={s.cardNote}>Payout queue: {marketing?.payout_queue?.referrers ?? 0} partner · Rp{marketing?.payout_queue?.total_idr ?? 0}</Text>
+        <TouchableOpacity style={s.btnGhost} onPress={() => navigation.navigate('AdminFinanceReport')}>
+          <Text style={s.btnGhostText}>Buka Laporan Keuangan →</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* QA Mode */}
       <Text style={s.section}>QA Mode - Full Access</Text>
       <View style={s.card}>
@@ -180,6 +256,43 @@ export default function AdminDashboardScreen({ navigation }) {
         <TouchableOpacity style={s.btnPrimary} onPress={() => startQa(qaLevel)}>
           <Text style={s.btnPrimaryText}>Mulai Latihan Level {qaLevel} (Full Access)</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Secure partner invites */}
+      <Text style={s.section}>Invite Partner (Secure)</Text>
+      <View style={s.card}>
+        <Text style={s.cardNote}>Token privat, hash-only, one-time, bisa dicabut. Jangan gunakan link share untuk registrasi partner.</Text>
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+          {['school', 'sales'].map((type) => (
+            <TouchableOpacity key={type} style={[s.btnPrimary, { flex: 1, backgroundColor: inviteTarget === type ? C.cyan : '#1A1A2E' }]} onPress={() => setInviteTarget(type)}>
+              <Text style={[s.btnPrimaryText, { color: inviteTarget === type ? C.bg : C.muted }]}>{type === 'school' ? 'Guru' : 'Referrer'}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {inviteTarget === 'sales' && <TextInput style={[s.input, { marginTop: 10 }]} value={inviteHead} onChangeText={setInviteHead} placeholder="ID head marketing (wajib untuk sales)" placeholderTextColor={C.muted} autoCapitalize="none" />}
+        <TouchableOpacity style={s.btnPrimary} onPress={handleCreateInvite} disabled={inviteBusy}>
+          {inviteBusy ? <ActivityIndicator color={C.bg} /> : <Text style={s.btnPrimaryText}>Buat Invite {inviteTarget === 'school' ? 'Guru' : 'Referrer'}</Text>}
+        </TouchableOpacity>
+        {invites.slice(0, 10).map((i) => {
+          const dead = i.used_at || i.revoked_at || new Date(i.expires_at) < new Date();
+          return <View key={i.id} style={s.pcRow}><View style={{ flex: 1 }}><Text style={s.pcCode}>{i.target_type}</Text><Text style={s.pcMeta}>{i.created_by_admin ? 'Admin' : (i.inviter_code || 'Head')} · {dead ? (i.used_at ? 'dipakai' : 'tidak aktif') : 'aktif'}</Text></View>{!dead && <TouchableOpacity onPress={() => handleRevokeInvite(i.id)}><Text style={s.pcRevoke}>Cabut</Text></TouchableOpacity>}</View>;
+        })}
+      </View>
+
+      {/* Marketing Test ID (M7) */}
+      <Text style={s.section}>Test ID Head Marketing (M7)</Text>
+      <View style={s.card}>
+        <Text style={s.cardNote}>Maksimal 5 ID aktif per Head Marketing. ID hanya one-time, TTL 30 menit, raw code hanya tampil saat dibuat.</Text>
+        <TextInput style={s.input} value={testOwner} onChangeText={setTestOwner} placeholder="ID Head Marketing (opsional; kosong = admin)" placeholderTextColor={C.muted} autoCapitalize="none" />
+        <TextInput style={s.input} value={testLabel} onChangeText={setTestLabel} placeholder="Label test (opsional)" placeholderTextColor={C.muted} />
+        <TouchableOpacity style={s.btnPrimary} onPress={handleCreateTestAccount} disabled={testBusy}>
+          {testBusy ? <ActivityIndicator color={C.bg} /> : <Text style={s.btnPrimaryText}>Buat Test ID 30 Menit</Text>}
+        </TouchableOpacity>
+        {testCode && <View style={{ marginTop: 10 }}><Text selectable style={s.pcCode}>{testCode.code}</Text><Text selectable style={s.pcMeta}>{testCode.redeem_url}</Text></View>}
+        {testAccounts.map((x) => {
+          const dead = x.used_at || x.revoked_at || new Date(x.expires_at) < new Date();
+          return <View key={x.id} style={s.pcRow}><View style={{ flex: 1 }}><Text style={s.pcCode}>••••{x.code_hint}</Text><Text style={s.pcMeta}>{x.label || 'Preview'} · {x.owner_name || 'Admin'} · {dead ? 'tidak aktif' : 'aktif'}</Text></View>{!dead && <TouchableOpacity onPress={() => handleRevokeTestAccount(x.id)}><Text style={s.pcRevoke}>Cabut</Text></TouchableOpacity>}</View>;
+        })}
       </View>
 
       {/* Passcode demo */}

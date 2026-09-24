@@ -7,7 +7,7 @@
 //                      POST /api/auth/admin/login
 // Layar ini tidak punya tombol di UI publik (A1): hanya link privat owner,
 // lewat parameter `?via=link` (web) atau route param `via: 'link'`.
-/* global window */
+
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet,
          ActivityIndicator, ScrollView, Platform, Alert } from 'react-native';

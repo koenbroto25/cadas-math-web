@@ -60,7 +60,7 @@ export default function ReferrerEarningsScreen({ navigation }) {
         </View>
         <View style={s.cardRow}>
           <Text style={s.amount}>{fmt(item.commission_idr)}</Text>
-          <Text style={s.rate}>{item.commission_rate}% dari {fmt(item.amount_idr)}</Text>
+          <Text style={s.rate}>{item.earning_type === 'quota_catchup' ? 'Catch-up tier' : 'Transaksi'} · {item.commission_rate}% dari {fmt(item.amount_idr)}</Text>
         </View>
         <Text style={s.date}>{fmtDate(item.created_at)}</Text>
       </View>

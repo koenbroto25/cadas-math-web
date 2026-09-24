@@ -1,4 +1,4 @@
-// src/screens/DemoHomeScreen.jsx
+﻿// src/screens/DemoHomeScreen.jsx
 // Screen utama Demo Mode: level picker 1-15, banner, timer (client), tombol mulai
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
@@ -58,6 +58,8 @@ export default function DemoHomeScreen({ navigation }) {
   const [genLoading, setGenLoading] = useState(false);
   const [genResult,  setGenResult]  = useState(null);  // { code, label, expires_at }
   const [genError,   setGenError]   = useState(null);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteUrl,  setInviteUrl]  = useState(null);
   const levelNames = LEVEL_NAMES;  // static — tidak perlu state
 
   // ── Welcome audio bot + lip-sync (paritas dengan HomeScreen) ─────────────
@@ -155,7 +157,19 @@ export default function DemoHomeScreen({ navigation }) {
     }
   }
 
-  // Eksekusi keluar demo — tanpa dialog (dipakai auto-expiry & konfirmasi manual)
+  async function handleCreateInvite(targetType) {
+    setInviteBusy(true);
+    try {
+      const token = await AsyncStorage.getItem('referrerToken');
+      const data = await api.partnerInvitesCreate({ target_type: targetType, expires_hours: 72 }, token);
+      setInviteUrl(data.invite_url);
+      if (Platform.OS === 'web') window.navigator.clipboard?.writeText(data.invite_url);
+    } catch (e) {
+      setGenError(e?.message || 'Gagal membuat invite partner');
+    } finally { setInviteBusy(false); }
+  }
+
+
   function doExit() {
     clearDemoMode();
     clearReferrerAuth();
@@ -260,8 +274,8 @@ export default function DemoHomeScreen({ navigation }) {
         <Text style={st.startBtnText}>MULAI DEMO LEVEL {demoLevel} 🚀</Text>
       </TouchableOpacity>
 
-      {/* Generate Passcode Client — hanya tampil untuk marketing */}
-      {demoKind === 'marketing' && (
+       {/* Generate Passcode Client — hanya tampil untuk marketing */}
+       {demoKind === 'marketing' && (
         <View style={st.passcodeSection}>
           <Text style={st.passcodeSectionTitle}>🎭 Passcode untuk Client</Text>
           <Text style={st.passcodeSectionSub}>Generate passcode 4 digit untuk client sekolah (berlaku 2 jam)</Text>
@@ -293,6 +307,21 @@ export default function DemoHomeScreen({ navigation }) {
         </View>
       )}
 
+      {demoKind === 'marketing' && (
+        <View style={st.passcodeSection}>
+          <Text style={st.passcodeSectionTitle}>👥 Invite Partner</Text>
+          <Text style={st.passcodeSectionSub}>Link privat untuk membuat akun guru atau referrer.</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <TouchableOpacity style={[st.genBtn, inviteBusy && { opacity: 0.6 }]} onPress={() => handleCreateInvite('school')} disabled={inviteBusy}>
+              <Text style={st.genBtnText}>Invite Guru</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[st.genBtn, inviteBusy && { opacity: 0.6 }]} onPress={() => handleCreateInvite('sales')} disabled={inviteBusy}>
+              <Text style={st.genBtnText}>Invite Referrer</Text>
+            </TouchableOpacity>
+          </View>
+          {inviteUrl && <Text selectable style={st.genResultHint}>{inviteUrl}</Text>}
+        </View>
+      )}
       {/* Keluar */}
       <TouchableOpacity style={st.exitBtn} onPress={handleExit}>
         <Text style={st.exitBtnText}>Keluar Mode Demo</Text>

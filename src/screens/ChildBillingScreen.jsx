@@ -89,6 +89,9 @@ export default function ChildBillingScreen({ navigation, route }) {
 
             {/* Riwayat Midtrans */}
             <Text style={s.sectionTitle}>Pembayaran Online (Midtrans)</Text>
+            <TouchableOpacity style={s.payButton} onPress={() => navigation.navigate('UpgradePaywall', { studentId: student.id, placedLevel: data?.student?.current_level })}>
+              <Text style={s.payButtonText}>Bayar / Upgrade Level via QRIS</Text>
+            </TouchableOpacity>
             {(data?.midtrans_invoices || []).length === 0
               ? <Text style={s.emptyText}>Belum ada transaksi online.</Text>
               : (data?.midtrans_invoices || []).map((x, i) => (
@@ -128,6 +131,8 @@ const s = StyleSheet.create({
   accessLabel:  { color:C.muted, fontSize:14 },
   accessVal:    { fontSize:14, fontWeight:'700' },
   payCard:      { backgroundColor:C.surface, borderRadius:12, padding:14, marginBottom:8 },
+  payButton:    { backgroundColor:C.cyan, borderRadius:12, padding:14, alignItems:'center', marginBottom:12 },
+  payButtonText:{ color:C.bg, fontSize:14, fontWeight:'800' },
   payRow:       { flexDirection:'row', justifyContent:'space-between', marginBottom:4 },
   payType:      { color:C.text, fontSize:14, fontWeight:'600' },
   payStatus:    { fontSize:12, fontWeight:'600' },

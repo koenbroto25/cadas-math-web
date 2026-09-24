@@ -1,10 +1,12 @@
 // App.jsx -- root navigation
 // Patch: tambah DemoStack (DemoHome + DemoPractice)
 // Admin masuk demo via Settings screen yang memanggil /api/auth/demo/admin-token
+// Patch boss: BossBattleScreen (championship gate L9) di student stack utama
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createNavigationContainerRef } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +20,9 @@ import FastTrackScreen       from './src/screens/FastTrackScreen';
 import UpgradePaywallScreen  from './src/screens/UpgradePaywallScreen';
 import AskKakScreen          from './src/screens/AskKakScreen';
 import SettingsScreen        from './src/screens/SettingsScreen';
+import InviteParentScreen     from './src/screens/InviteParentScreen';
 import SessionResultScreen   from './src/screens/SessionResultScreen';
+import BossBattleScreen      from './src/screens/BossBattleScreen';
 
 // Screens -- Auth & Onboarding
 import RoleSelectScreen      from './src/screens/RoleSelectScreen';
@@ -36,6 +40,8 @@ import ChildProgressScreen   from './src/screens/ChildProgressScreen';
 import ChildSessionsScreen   from './src/screens/ChildSessionsScreen';
 import ChildBillingScreen           from './src/screens/ChildBillingScreen';
 import ChildWeeklySummaryScreen  from './src/screens/ChildWeeklySummaryScreen';
+import ParentInviteScreen       from './src/screens/ParentInviteScreen';
+import PartnerInviteScreen      from './src/screens/PartnerInviteScreen';
 
 // Screens -- Teacher Dashboard
 import TeacherDashboardScreen from './src/screens/TeacherDashboardScreen';
@@ -51,13 +57,16 @@ import ReferrerChangePasswordScreen from './src/screens/ReferrerChangePasswordSc
 
 // Screens -- Demo Mode
 import DemoHomeScreen from './src/screens/DemoHomeScreen';
+import TestAccountRedeemScreen from './src/screens/TestAccountRedeemScreen';
 
 // Screens -- Admin (owner/developer, full access QA)
 import AdminLoginScreen     from './src/screens/AdminLoginScreen';
 import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
+import AdminFinanceReportScreen from './src/screens/AdminFinanceReportScreen';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+const navigationRef = createNavigationContainerRef();
 
 const COLORS = { bg: '#0A0A12', surface: '#13131F', cyan: '#00F0FF', muted: '#444455' };
 
@@ -197,8 +206,6 @@ export default function App() {
     return () => clearTimeout(id);
   }, [demoMode, demoExpiresAt]);
 
-  if (!bootstrapped) return null;
-
   const isLoggedIn    = !!authToken;
   const needPlacement = isLoggedIn && authRole === 'student' && !placementDone;
   const isReferrer    = !!referrerToken;
@@ -210,6 +217,55 @@ export default function App() {
   const isAdmin = !!adminToken;
   // Marketing referrer yang sedang demo: tetap punya referrerToken tapi masuk demo stack
   const isReferrerOnlyDashboard = isReferrer && !demoMode;
+
+  // A2: invite parent adalah web link. Jika browser dibuka pada /parent/join
+  // dengan ?code=..., arahkan ke ParentAuth setelah navigator siap.
+  useEffect(() => {
+    if (!bootstrapped || typeof window === 'undefined' || !window.location) return;
+    const code = new URLSearchParams(window.location.search || '').get('code');
+    const ref = new URLSearchParams(window.location.search || '').get('ref');
+    const partnerToken = new URLSearchParams(window.location.search || '').get('token');
+    const testPath = window.location.pathname === '/test/redeem';
+    const testCode = testPath ? new URLSearchParams(window.location.search || '').get('code') : null;
+    if (testCode && !isLoggedIn && !isAdmin && !isReferrerOnlyDashboard && !isDemo) {
+      const goTest = () => {
+        if (navigationRef.isReady()) navigationRef.navigate('TestAccountRedeem', { code: testCode });
+        else setTimeout(goTest, 80);
+      };
+      goTest();
+      return;
+    }
+    if (partnerToken && !code && !isLoggedIn && !isReferrerOnlyDashboard && !isAdmin) {
+      const goPartner = () => {
+        if (navigationRef.isReady()) navigationRef.navigate('PartnerInvite', { inviteToken: partnerToken });
+        else setTimeout(goPartner, 80);
+      };
+      goPartner();
+      return;
+    }
+    if (!code && ref) {
+      try { AsyncStorage.setItem('referralCode', ref); } catch (_) {}
+    }
+    if (!code) return;
+    const allowed = isParent || (!isLoggedIn && !isTeacher && !isReferrerOnlyDashboard && !isAdmin && !isDemo);
+    if (!allowed) return;
+
+    let cancelled = false;
+    let timer = null;
+    const go = () => {
+      if (cancelled) return;
+      if (navigationRef.isReady()) {
+        navigationRef.navigate('ParentAuth', { inviteCode: code.trim().toUpperCase() });
+      } else {
+        timer = setTimeout(go, 80);
+      }
+    };
+    go();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [bootstrapped, isParent, isLoggedIn, isTeacher, isReferrerOnlyDashboard, isAdmin, isDemo]);
+
+  if (!bootstrapped) return null;
+
   // P2 (A7): link khusus admin ?via=link → Portal Admin jadi layar awal (web).
   // Link ini disimpan owner secara privat; UI publik tetap tanpa tombol Admin.
   const viaAdminLink = !isAdmin && typeof window !== 'undefined' &&
@@ -219,14 +275,14 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
 
             {/* ── DEMO STACK (admin / marketing / client passcode) ─────── */}
             {isAdmin ? (
               <>
-                <Stack.Screen name='AdminDashboard' component={AdminDashboardScreen} />
-                <Stack.Screen name='AdminPractice'  component={PracticeScreen} />
+                                <Stack.Screen name='AdminFinanceReport' component={AdminFinanceReportScreen} />
+<Stack.Screen name='AdminPractice'  component={PracticeScreen} />
                 <Stack.Screen name='AdminFastTrack' component={FastTrackScreen} />
                 <Stack.Screen name='SessionResult'  component={SessionResultScreen} />
               </>
@@ -252,9 +308,14 @@ export default function App() {
             ) : isParent ? (
               <>
                 <Stack.Screen name='ParentDashboard' component={ParentDashboardScreen} />
+                 <Stack.Screen name='ParentAuth'       component={ParentAuthScreen} />
+                 <Stack.Screen name='ParentInvite'     component={ParentInviteScreen} />
+
+
                 <Stack.Screen name='ChildProgress'   component={ChildProgressScreen} />
                 <Stack.Screen name='ChildSessions'   component={ChildSessionsScreen} />
                 <Stack.Screen name='ChildBilling'         component={ChildBillingScreen} />
+                 <Stack.Screen name='UpgradePaywall'      component={UpgradePaywallScreen} />
                 <Stack.Screen name='ChildWeeklySummary' component={ChildWeeklySummaryScreen} />
               </>
 
@@ -279,6 +340,8 @@ export default function App() {
                 <Stack.Screen name='ParentAuth'      component={ParentAuthScreen} />
                 <Stack.Screen name='TeacherAuth'     component={TeacherAuthScreen} />
                 <Stack.Screen name='ReferrerLogin'   component={ReferrerLoginScreen} />
+                 <Stack.Screen name='PartnerInvite' component={PartnerInviteScreen} />
+                 <Stack.Screen name='TestAccountRedeem' component={TestAccountRedeemScreen} />
                 {!viaAdminLink && (
                   <Stack.Screen name='AdminLogin'    component={AdminLoginScreen} />
                 )}
@@ -297,9 +360,11 @@ export default function App() {
               <>
                 <Stack.Screen name='Main'           component={TabNavigator} />
                 <Stack.Screen name='Practice'       component={PracticeScreen} />
+                <Stack.Screen name='InviteParent'   component={InviteParentScreen} />
                 <Stack.Screen name='FastTrack'      component={FastTrackScreen} />
                 <Stack.Screen name='UpgradePaywall' component={UpgradePaywallScreen} />
                 <Stack.Screen name='SessionResult'  component={SessionResultScreen} />
+                <Stack.Screen name='BossBattle'     component={BossBattleScreen} />
               </>
             )}
 

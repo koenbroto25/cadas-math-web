@@ -179,7 +179,7 @@ export default function FastTrackScreen() {
         `${BASE_URL}/api/upgrade-test/${level}?studentId=${sid}`,
         { headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} }
       );
-      if (res.status === 403) { nav.navigate('UpgradePaywall', { level }); return; }
+      if (res.status === 403) { nav.navigate('UpgradePaywall', { placedLevel: level, studentId: student?.id }); return; }
       const data = await res.json();
       if (data.error) { Alert.alert('Error', data.error); return; }
       setTest(data);
