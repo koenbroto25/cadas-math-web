@@ -38,8 +38,38 @@ function step(msg) {
 }
 
 function copyFile(from, to) {
+  fs.mkdirSync(path.dirname(to), { recursive: true });
   fs.copyFileSync(from, to);
   console.log(`  ✓ ${path.relative(ROOT, to)}`);
+}
+
+function copyDir(from, to) {
+  fs.mkdirSync(to, { recursive: true });
+  for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
+    const source = path.join(from, entry.name);
+    const target = path.join(to, entry.name);
+    if (entry.isDirectory()) copyDir(source, target);
+    else copyFile(source, target);
+  }
+}
+
+function copyBotAssets() {
+  step('Menyalin bot assets ke dist/assets/bot ...');
+  const from = path.join(ROOT, 'src', 'assets', 'bot');
+  const to = path.join(DIST, 'assets', 'bot');
+  if (!fs.existsSync(from)) throw new Error(`Bot asset source tidak ditemukan: ${from}`);
+  fs.rmSync(to, { recursive: true, force: true });
+  copyDir(from, to);
+  const required = [
+    'body/body_base.svg',
+    'expr/celebrating.svg', 'expr/disappointed.svg', 'expr/hype.svg',
+    'expr/idle.svg', 'expr/listening.svg', 'expr/thinking.svg',
+    'viseme/a.svg', 'viseme/b.svg', 'viseme/c.svg', 'viseme/d.svg',
+    'viseme/e.svg', 'viseme/f.svg', 'viseme/G.svg', 'viseme/H.svg', 'viseme/x.svg',
+  ];
+  const missing = required.filter((relative) => !fs.existsSync(path.join(to, relative)));
+  if (missing.length) throw new Error(`Bot asset wajib hilang: ${missing.join(', ')}`);
+  console.log(`  ✓ ${required.length} required bot assets tersedia`);
 }
 
 function runExport() {
@@ -193,6 +223,7 @@ function main() {
   patchIndexHtml();
   copyDeployFiles();
   copyIcons();
+  copyBotAssets();
   const ok = verifyIndexHtml();
   const iconsOk = verifyIcons();
   report();
